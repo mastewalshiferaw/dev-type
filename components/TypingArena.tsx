@@ -24,8 +24,10 @@ export default function TypingArena({ onFinish }: Props) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const finishRef = useRef(false);
+  const cursorRef = useRef(0);
+  cursorRef.current = cursor;
 
-  // Pick a matching snippet based on filters
+  // Reset Test
   const resetTest = useCallback(() => {
     let pool = SNIPPETS.filter((s) => s.length === selectedLength);
     if (selectedLang !== 'All') {
@@ -63,28 +65,33 @@ export default function TypingArena({ onFinish }: Props) {
       const calculatedAcc =
         totalAttempted > 0 ? Math.max(0, Math.round((correctChars / totalAttempted) * 100)) : 100;
 
-      onFinish(calculatedWpm, calculatedAcc);
+      // Defer triggering parent update to avoid React render conflict
+      setTimeout(() => {
+        onFinish(calculatedWpm, calculatedAcc);
+      }, 0);
     },
     [startTime, mistakes.length, onFinish]
   );
 
-  // Countdown Timer
+  // High-precision Timestamp Timer (Never lags, never desyncs)
   useEffect(() => {
     if (!startTime || isFinished || selectedDuration === 0) return;
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          finishRun(cursor);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+      const remaining = selectedDuration - elapsedSeconds;
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        setTimeLeft(0);
+        finishRun(cursorRef.current);
+      } else {
+        setTimeLeft(remaining);
+      }
+    }, 200);
 
     return () => clearInterval(interval);
-  }, [startTime, isFinished, selectedDuration, cursor, finishRun]);
+  }, [startTime, isFinished, selectedDuration, finishRun]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isFinished) return;
@@ -97,7 +104,7 @@ export default function TypingArena({ onFinish }: Props) {
 
     if (e.key.length > 1 && e.key !== 'Enter' && e.key !== 'Backspace') return;
 
-    // Start on first keypress
+    // Start timer on first valid keypress
     if (!startTime) {
       setStartTime(Date.now());
     }
@@ -113,7 +120,7 @@ export default function TypingArena({ onFinish }: Props) {
       return;
     }
 
-    // Enter Key (with auto-skipping indent)
+    // Enter Key (with smart auto-indent)
     if (e.key === 'Enter') {
       if (expectedChar === '\n') {
         let nextIndex = cursor + 1;
@@ -128,7 +135,7 @@ export default function TypingArena({ onFinish }: Props) {
       return;
     }
 
-    // Character Match
+    // Standard character match
     if (e.key === expectedChar) {
       const nextIndex = cursor + 1;
       setCursor(nextIndex);
@@ -148,7 +155,7 @@ export default function TypingArena({ onFinish }: Props) {
       onKeyDown={handleKeyDown}
       className="outline-none flex flex-col justify-center items-center w-full max-w-3xl"
     >
-      {/* Monkeytype-Style Navigation Toolbar */}
+      {/* Settings Bar */}
       <div className="flex flex-wrap items-center justify-center gap-6 mb-6 px-4 py-2 bg-zinc-900/60 border border-zinc-800/80 rounded-xl text-xs font-mono text-zinc-400">
         {/* Language Filter */}
         <div className="flex items-center gap-1.5">
@@ -203,11 +210,11 @@ export default function TypingArena({ onFinish }: Props) {
         </div>
       </div>
 
-      {/* Countdown Timer Display */}
+      {/* Countdown Timer */}
       <div className="w-full flex justify-between items-center mb-3 text-sm font-mono">
-        <div className="text-2xl font-black text-amber-400 tracking-tight">
-          {timeLeft}
-          <span className="text-xs text-zinc-500 font-normal ml-1">sec</span>
+        <div className="text-2xl font-black text-amber-400 tracking-tight flex items-baseline gap-1">
+          <span>{timeLeft}</span>
+          <span className="text-xs text-zinc-500 font-normal">sec</span>
         </div>
 
         <button

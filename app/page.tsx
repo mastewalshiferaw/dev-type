@@ -37,10 +37,10 @@ export default function Home() {
   useEffect(() => {
     fetchLeaderboards();
   }, [fetchLeaderboards]);
-
-  const handleScoreSubmit = async (playerName: string) => {
+const handleScoreSubmit = async (playerName: string) => {
     if (!completedStats) return;
 
+    // 1. Submit to Supabase
     await supabase.from('scores').insert([
       {
         player_name: playerName,
@@ -48,6 +48,12 @@ export default function Home() {
         accuracy: completedStats.accuracy,
       },
     ]);
+
+    // 2. Save to local storage for the "You" row at the bottom of the card
+    localStorage.setItem(
+      'devtype_user',
+      JSON.stringify({ name: playerName, wpm: completedStats.wpm })
+    );
 
     setCompletedStats(null);
     fetchLeaderboards();
