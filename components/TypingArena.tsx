@@ -2,13 +2,36 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, Timer, Code2, AlignLeft } from 'lucide-react';
+import SegmentedControl, { SegmentedOption } from '@/components/SegmentedControl';
+import SnippetView from '@/components/SnippetView';
 import { SNIPPETS, Snippet, Language, SnippetLength } from '@/lib/snippets';
+
+const LANGUAGE_OPTIONS: SegmentedOption<Language>[] = (
+  ['All', 'JavaScript', 'Python', 'Rust', 'C++'] as const
+).map((value) => ({ value, label: value }));
+const DURATION_OPTIONS: SegmentedOption<number>[] = [15, 30, 60].map((value) => ({
+  value,
+  label: `${value}s`,
+}));
+const LENGTH_OPTIONS: SegmentedOption<SnippetLength>[] = [
+  { value: 'short', label: 'Short' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'long', label: 'Long' },
+];
+
+// Tallest snippet per length, so the code panel keeps a stable height within a setting
+const MIN_LINES = SNIPPETS.reduce(
+  (acc, { length, code }) => ({ ...acc, [length]: Math.max(acc[length], code.split('\n').length) }),
+  { short: 0, medium: 0, long: 0 } as Record<SnippetLength, number>
+);
 
 interface Props {
   onFinish: (wpm: number, accuracy: number, errors: number) => void;
+  /** Bump to start a fresh run from outside (e.g. the result dialog) */
+  restartToken?: number;
 }
 
-export default function TypingArena({ onFinish }: Props) {
+export default function TypingArena({ onFinish, restartToken = 0 }: Props) {
   // Settings
   const [selectedLang, setSelectedLang] = useState<Language>('All');
   const [selectedLength, setSelectedLength] = useState<SnippetLength>('medium');
@@ -21,6 +44,7 @@ export default function TypingArena({ onFinish }: Props) {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(30);
   const [isFinished, setIsFinished] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const finishRef = useRef(false);
@@ -54,7 +78,7 @@ export default function TypingArena({ onFinish }: Props) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetTest();
-  }, [resetTest]);
+  }, [resetTest, restartToken]);
 
   // Finish run calculation
   const finishRun = useCallback((finalCursor: number, finalMistakes: number) => {
@@ -151,103 +175,89 @@ export default function TypingArena({ onFinish }: Props) {
     }
   };
 
+  const announcement = !startTime
+    ? ''
+    : isFinished
+      ? 'Time is up. Run finished.'
+      : timeLeft <= 10 && timeLeft % 5 === 0
+        ? `${timeLeft} seconds left`
+        : '';
+
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      className="outline-none flex flex-col justify-center items-center w-full max-w-3xl"
-    >
-      {/* Monkeytype-Style Navigation Toolbar */}
-      <div className="flex flex-wrap items-center justify-center gap-6 mb-6 px-4 py-2 bg-zinc-900/60 border border-zinc-800/80 rounded-xl text-xs font-mono text-zinc-400">
-        {/* Language Filter */}
-        <div className="flex items-center gap-1.5">
-          <Code2 size={13} className="text-amber-400" />
-          {(['All', 'JavaScript', 'Python', 'Rust', 'C++'] as Language[]).map((lang) => (
-            <button
-              key={lang}
-              onClick={() => setSelectedLang(lang)}
-              className={`px-2 py-0.5 rounded transition ${
-                selectedLang === lang ? 'text-amber-400 font-bold bg-zinc-800' : 'hover:text-zinc-200'
-              }`}
-            >
-              {lang}
-            </button>
-          ))}
-        </div>
-
-        <span className="text-zinc-700">|</span>
-
-        {/* Time Filter */}
-        <div className="flex items-center gap-1.5">
-          <Timer size={13} className="text-amber-400" />
-          {[15, 30, 60].map((t) => (
-            <button
-              key={t}
-              onClick={() => setSelectedDuration(t)}
-              className={`px-2 py-0.5 rounded transition ${
-                selectedDuration === t ? 'text-amber-400 font-bold bg-zinc-800' : 'hover:text-zinc-200'
-              }`}
-            >
-              {t}s
-            </button>
-          ))}
-        </div>
-
-        <span className="text-zinc-700">|</span>
-
-        {/* Length Filter */}
-        <div className="flex items-center gap-1.5">
-          <AlignLeft size={13} className="text-amber-400" />
-          {(['short', 'medium', 'long'] as SnippetLength[]).map((len) => (
-            <button
-              key={len}
-              onClick={() => setSelectedLength(len)}
-              className={`capitalize px-2 py-0.5 rounded transition ${
-                selectedLength === len ? 'text-amber-400 font-bold bg-zinc-800' : 'hover:text-zinc-200'
-              }`}
-            >
-              {len}
-            </button>
-          ))}
-        </div>
+    <div className="flex w-full max-w-3xl flex-col gap-4">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border border-line bg-surface/60 p-1">
+        <SegmentedControl
+          label="Language"
+          icon={Code2}
+          options={LANGUAGE_OPTIONS}
+          value={selectedLang}
+          onChange={setSelectedLang}
+        />
+        <span aria-hidden className="hidden h-5 w-px bg-line-strong sm:block" />
+        <SegmentedControl
+          label="Duration"
+          icon={Timer}
+          options={DURATION_OPTIONS}
+          value={selectedDuration}
+          onChange={setSelectedDuration}
+        />
+        <span aria-hidden className="hidden h-5 w-px bg-line-strong sm:block" />
+        <SegmentedControl
+          label="Snippet length"
+          icon={AlignLeft}
+          options={LENGTH_OPTIONS}
+          value={selectedLength}
+          onChange={setSelectedLength}
+        />
       </div>
 
-      {/* Countdown Timer Display */}
-      <div className="w-full flex justify-between items-center mb-3 text-sm font-mono">
-        <div className="text-2xl font-black text-amber-400 tracking-tight">
-          {timeLeft}
-          <span className="text-xs text-zinc-500 font-normal ml-1">sec</span>
+      {/* Timer + restart */}
+      <div className="flex items-center justify-between">
+        <div role="timer" aria-label="Time remaining" className="flex items-baseline gap-2">
+          <span className="min-w-[2ch] text-3xl font-bold tabular-nums text-accent">{timeLeft}</span>
+          <span className="label text-muted">sec</span>
         </div>
-
         <button
+          type="button"
           onClick={resetTest}
-          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-amber-400 transition"
+          aria-keyshortcuts="Tab"
+          className="transition-ui inline-flex h-10 items-center gap-2 rounded-md px-3 text-xs text-muted hover:bg-raised/60 hover:text-accent"
         >
-          <RefreshCw size={12} /> Restart (Tab)
+          <RefreshCw size={14} aria-hidden />
+          Restart
+          <kbd className="rounded-sm border border-line-strong px-1.5 py-0.5 text-2xs text-muted">Tab</kbd>
         </button>
       </div>
+      <p role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
 
-      {/* Code Card */}
-      <div className="w-full bg-zinc-900/90 p-8 rounded-xl border border-zinc-800 font-mono text-lg leading-relaxed shadow-2xl relative select-none">
-        <pre className="whitespace-pre-wrap break-all">
-          {snippet.code.split('').map((char, index) => {
-            let color = 'text-zinc-600';
-            if (index < cursor) {
-              color = mistakes.includes(index) ? 'text-rose-500 bg-rose-500/10' : 'text-emerald-400';
-            }
-            const isCursor = index === cursor;
-
-            return (
-              <span key={index} className={`relative ${color}`}>
-                {isCursor && (
-                  <span className="absolute -left-0.5 top-0 bottom-0 w-0.5 bg-amber-400 animate-pulse" />
-                )}
-                {char === '\n' ? '↵\n' : char}
-              </span>
-            );
-          })}
-        </pre>
+      {/* Code card */}
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        role="textbox"
+        aria-multiline
+        aria-label="Typing area. Type the code shown. Tab restarts, Shift+Tab leaves."
+        onKeyDown={handleKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className={`transition-ui relative w-full select-none rounded-xl border bg-surface p-4 shadow-panel outline-none sm:p-8 ${
+          focused ? 'border-line-strong ring-2 ring-accent/30' : 'border-line'
+        } ${isFinished ? 'opacity-70' : ''}`}
+      >
+        <SnippetView
+          code={snippet.code}
+          cursor={cursor}
+          mistakes={mistakes}
+          minLines={MIN_LINES[selectedLength]}
+        />
+        {!focused && !isFinished && (
+          <p className="label pointer-events-none absolute right-4 bottom-3 text-muted">
+            Click to start typing
+          </p>
+        )}
       </div>
     </div>
   );
