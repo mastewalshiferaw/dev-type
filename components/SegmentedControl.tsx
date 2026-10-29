@@ -23,8 +23,8 @@ export default function SegmentedControl<T extends string | number>({
   onChange,
 }: Props<T>) {
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1">
-      <Icon size={14} aria-hidden className="mx-2 shrink-0 text-accent" />
+    <div role="group" aria-label={label} className="flex flex-wrap items-center justify-center gap-1">
+      <Icon size={14} aria-hidden className="mx-1.5 hidden shrink-0 text-accent @min-[30rem]:block" />
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -33,7 +33,7 @@ export default function SegmentedControl<T extends string | number>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(option.value)}
-            className={`transition-ui h-10 min-w-10 rounded-md px-3 text-xs ${
+            className={`transition-ui h-10 min-w-10 rounded-md px-1.5 text-xs @min-[30rem]:px-2 ${
               active
                 ? 'bg-raised font-semibold text-accent shadow-[inset_0_0_0_1px_var(--color-line-strong)]'
                 : 'text-muted hover:bg-raised/60 hover:text-ink active:bg-raised'

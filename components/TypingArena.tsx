@@ -184,9 +184,9 @@ export default function TypingArena({ onFinish, restartToken = 0 }: Props) {
         : '';
 
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-4">
+    <div className="@container flex w-full max-w-4xl flex-col gap-4">
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border border-line bg-surface/60 p-1">
+      <div className="flex flex-col items-center gap-1 rounded-xl border border-line bg-surface/60 p-1 @min-[46rem]:flex-row @min-[46rem]:justify-center @min-[46rem]:gap-x-2">
         <SegmentedControl
           label="Language"
           icon={Code2}
@@ -194,7 +194,7 @@ export default function TypingArena({ onFinish, restartToken = 0 }: Props) {
           value={selectedLang}
           onChange={setSelectedLang}
         />
-        <span aria-hidden className="hidden h-5 w-px bg-line-strong sm:block" />
+        <span aria-hidden className="hidden h-5 w-px bg-line-strong @min-[46rem]:block" />
         <SegmentedControl
           label="Duration"
           icon={Timer}
@@ -202,7 +202,7 @@ export default function TypingArena({ onFinish, restartToken = 0 }: Props) {
           value={selectedDuration}
           onChange={setSelectedDuration}
         />
-        <span aria-hidden className="hidden h-5 w-px bg-line-strong sm:block" />
+        <span aria-hidden className="hidden h-5 w-px bg-line-strong @min-[46rem]:block" />
         <SegmentedControl
           label="Snippet length"
           icon={AlignLeft}
@@ -243,7 +243,7 @@ export default function TypingArena({ onFinish, restartToken = 0 }: Props) {
         onKeyDown={handleKeyDown}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className={`transition-ui relative w-full select-none rounded-xl border bg-surface p-4 shadow-panel outline-none sm:p-8 ${
+        className={`transition-ui relative w-full select-none rounded-xl border bg-surface p-4 pb-10 shadow-panel outline-none sm:p-8 sm:pb-12 ${
           focused ? 'border-line-strong ring-2 ring-accent/30' : 'border-line'
         } ${isFinished ? 'opacity-70' : ''}`}
       >
@@ -254,7 +254,7 @@ export default function TypingArena({ onFinish, restartToken = 0 }: Props) {
           minLines={MIN_LINES[selectedLength]}
         />
         {!focused && !isFinished && (
-          <p className="label pointer-events-none absolute right-4 bottom-3 text-muted">
+          <p className="label pointer-events-none absolute right-4 bottom-3 text-muted sm:right-8 sm:bottom-4">
             Click to start typing
           </p>
         )}
