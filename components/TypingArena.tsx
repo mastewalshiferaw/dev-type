@@ -5,7 +5,7 @@ import { RefreshCw, Timer, Code2, AlignLeft } from 'lucide-react';
 import { SNIPPETS, Snippet, Language, SnippetLength } from '@/lib/snippets';
 
 interface Props {
-  onFinish: (wpm: number, accuracy: number) => void;
+  onFinish: (wpm: number, accuracy: number, errors: number) => void;
 }
 
 export default function TypingArena({ onFinish }: Props) {
@@ -24,6 +24,12 @@ export default function TypingArena({ onFinish }: Props) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const finishRef = useRef(false);
+
+  // Latest values for timers/callbacks that must not restart on every keystroke
+  const latest = useRef({ cursor, mistakes, startTime, onFinish });
+  useEffect(() => {
+    latest.current = { cursor, mistakes, startTime, onFinish };
+  });
 
   // Pick a matching snippet based on filters
   const resetTest = useCallback(() => {
@@ -44,58 +50,62 @@ export default function TypingArena({ onFinish }: Props) {
     containerRef.current?.focus();
   }, [selectedLang, selectedLength, selectedDuration]);
 
+  // Snippet is picked at random, so it can only be chosen after mount (keeps SSR output deterministic)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     resetTest();
   }, [resetTest]);
 
   // Finish run calculation
-  const finishRun = useCallback(
-    (finalCursor: number) => {
-      if (finishRef.current) return;
-      finishRef.current = true;
-      setIsFinished(true);
+  const finishRun = useCallback((finalCursor: number, finalMistakes: number) => {
+    if (finishRef.current) return;
+    finishRef.current = true;
+    setIsFinished(true);
 
-      const elapsedMinutes = startTime ? (Date.now() - startTime) / 60000 : 0.01;
-      const totalAttempted = finalCursor;
-      const correctChars = Math.max(0, totalAttempted - mistakes.length);
+    const { startTime: started, onFinish: notify } = latest.current;
+    const elapsedMinutes = started ? (Date.now() - started) / 60000 : 0.01;
+    const totalAttempted = finalCursor;
+    const correctChars = Math.max(0, totalAttempted - finalMistakes);
 
-      const calculatedWpm = Math.max(0, Math.round(correctChars / 5 / elapsedMinutes));
-      const calculatedAcc =
-        totalAttempted > 0 ? Math.max(0, Math.round((correctChars / totalAttempted) * 100)) : 100;
+    const calculatedWpm = Math.max(0, Math.round(correctChars / 5 / elapsedMinutes));
+    const calculatedAcc =
+      totalAttempted > 0 ? Math.max(0, Math.round((correctChars / totalAttempted) * 100)) : 100;
 
-      onFinish(calculatedWpm, calculatedAcc);
-    },
-    [startTime, mistakes.length, onFinish]
-  );
+    notify(calculatedWpm, calculatedAcc, finalMistakes);
+  }, []);
 
-  // Countdown Timer
+  // Countdown Timer (derived from the start timestamp so it never restarts while typing)
   useEffect(() => {
-    if (!startTime || isFinished || selectedDuration === 0) return;
+    if (!startTime || isFinished) return;
 
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          finishRun(cursor);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil(selectedDuration - (Date.now() - startTime) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+        finishRun(latest.current.cursor, latest.current.mistakes.length);
+      }
+    };
+    const interval = setInterval(tick, 250);
 
     return () => clearInterval(interval);
-  }, [startTime, isFinished, selectedDuration, cursor, finishRun]);
+  }, [startTime, isFinished, selectedDuration, finishRun]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isFinished) return;
+    // Let focused controls (filter buttons) handle their own keys
+    if (e.target !== e.currentTarget) return;
 
     if (e.key === 'Tab') {
+      if (e.shiftKey) return; // keep Shift+Tab available for leaving the typing area
       e.preventDefault();
       resetTest();
       return;
     }
 
+    if (isFinished) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key.length > 1 && e.key !== 'Enter' && e.key !== 'Backspace') return;
+    e.preventDefault();
 
     // Start on first keypress
     if (!startTime) {
@@ -121,7 +131,7 @@ export default function TypingArena({ onFinish }: Props) {
           nextIndex++;
         }
         setCursor(nextIndex);
-        if (nextIndex >= snippet.code.length) finishRun(nextIndex);
+        if (nextIndex >= snippet.code.length) finishRun(nextIndex, mistakes.length);
       } else {
         setMistakes((prev) => [...prev, cursor]);
       }
@@ -129,15 +139,15 @@ export default function TypingArena({ onFinish }: Props) {
     }
 
     // Character Match
+    const nextIndex = cursor + 1;
     if (e.key === expectedChar) {
-      const nextIndex = cursor + 1;
       setCursor(nextIndex);
-      if (nextIndex >= snippet.code.length) finishRun(nextIndex);
+      if (nextIndex >= snippet.code.length) finishRun(nextIndex, mistakes.length);
     } else {
-      if (!mistakes.includes(cursor)) {
-        setMistakes((prev) => [...prev, cursor]);
-      }
-      setCursor((prev) => prev + 1);
+      const nextMistakes = mistakes.includes(cursor) ? mistakes : [...mistakes, cursor];
+      setMistakes(nextMistakes);
+      setCursor(nextIndex);
+      if (nextIndex >= snippet.code.length) finishRun(nextIndex, nextMistakes.length);
     }
   };
 
