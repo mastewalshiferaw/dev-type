@@ -19,16 +19,3 @@ export function useProfile(): Profile {
 export function setUsername(username: string) {
   profileStore.set({ username: username.trim() });
 }
-
-// -700 shades keep white initials above the 4.5:1 AA contrast ratio
-const AVATAR_COLORS = ['bg-emerald-700', 'bg-cyan-700', 'bg-violet-700', 'bg-amber-700', 'bg-rose-700'];
-
-export function avatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-export function initials(name: string): string {
-  return name.replace(/^@/, '').slice(0, 2).toUpperCase() || '?';
-}

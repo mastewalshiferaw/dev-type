@@ -1,13 +1,14 @@
 'use client';
 
-import { Crown, RefreshCw, Star, Terminal, Trophy, UserRound } from 'lucide-react';
+import { RefreshCw, Terminal, Trophy, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import Avatar from '@/components/leaderboard/Avatar';
+import LeaderboardRow from '@/components/leaderboard/LeaderboardRow';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import Select from '@/components/ui/Select';
 import Skeleton from '@/components/ui/Skeleton';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
-import { TIMEFRAMES, type RankedEntry, type Timeframe } from '@/lib/leaderboard';
+import { TIMEFRAMES, type Timeframe } from '@/lib/leaderboard';
 import { LANGUAGE_FILTER_OPTIONS, type LanguageFilter } from '@/lib/languages';
 import { useProfile } from '@/lib/profile';
 
@@ -18,49 +19,6 @@ const TITLES: Record<Timeframe, { title: string; subtitle: string }> = {
   week: { title: 'Weekly Leaders', subtitle: 'Last 7 days' },
   all: { title: 'Hall of Fame', subtitle: 'All time' },
 };
-
-function RankMark({ rank }: { rank: number }) {
-  return (
-    <span className="flex w-5 shrink-0 items-center justify-center">
-      <span className="sr-only">Rank {rank}</span>
-      {rank === 1 && <Crown size={18} aria-hidden className="fill-accent/20 text-accent" />}
-      {rank === 2 && <Trophy size={16} aria-hidden className="fill-ink-dim/20 text-ink-dim" />}
-      {rank === 3 && <Star size={16} aria-hidden className="fill-accent/10 text-accent" />}
-      {rank > 3 && (
-        <span aria-hidden className="text-xs font-semibold text-muted tabular-nums">
-          {rank}
-        </span>
-      )}
-    </span>
-  );
-}
-
-function Row({ entry, isYou }: { entry: RankedEntry; isYou: boolean }) {
-  return (
-    <li
-      aria-current={isYou ? 'true' : undefined}
-      className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 ${
-        isYou ? 'bg-accent-fill/12 ring-1 ring-accent/40' : ''
-      }`}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <RankMark rank={entry.rank} />
-        <Avatar name={entry.username} />
-        <span className="truncate text-sm font-medium text-ink" title={entry.username}>
-          {entry.username}
-          {isYou && <span className="ml-1.5 text-2xs font-semibold text-accent">(you)</span>}
-        </span>
-      </div>
-      <div className="shrink-0 text-right tabular-nums">
-        <p className="text-sm font-bold text-ink">
-          {entry.wpm}
-          <span className="ml-1 text-2xs font-normal text-muted">WPM</span>
-        </p>
-        <p className="text-2xs text-muted">{entry.accuracy}% acc</p>
-      </div>
-    </li>
-  );
-}
 
 export default function Leaderboard({ onEditProfile }: { onEditProfile: () => void }) {
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
@@ -79,7 +37,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
   return (
     <section
       aria-labelledby="leaderboard-title"
-      className="flex w-full flex-col rounded-3xl border border-line bg-surface/90 p-5 shadow-panel"
+      className="flex w-full flex-col rounded-xl border border-line bg-surface/90 p-5 shadow-panel"
     >
       <header className="mb-4 flex items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-accent/30 bg-accent-fill/10 text-accent">
@@ -143,7 +101,14 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
         ) : page && page.entries.length > 0 ? (
           <ol className="flex flex-col gap-1">
             {page.entries.map((entry) => (
-              <Row key={entry.id} entry={entry} isYou={entry.id === you?.id} />
+              <LeaderboardRow
+                key={entry.id}
+                rank={entry.rank}
+                username={entry.username}
+                wpm={entry.wpm}
+                accuracy={entry.accuracy}
+                isYou={entry.id === you?.id}
+              />
             ))}
           </ol>
         ) : (
@@ -157,7 +122,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
 
       {/* You row */}
       <div className="mt-4 border-t border-line pt-3">
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-canvas/70 p-2.5">
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-line bg-canvas/70 p-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="w-8 pl-1 text-xs text-muted tabular-nums">{you ? `#${you.rank}` : '–'}</span>
             {username ? (

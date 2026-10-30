@@ -2,25 +2,17 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { ClipboardPaste, MousePointerClick, RefreshCw, Square } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type KeyboardEvent,
-  type RefObject,
-} from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import CodeView from '@/components/typing/CodeView';
 import Timer from '@/components/typing/Timer';
 import Kbd from '@/components/ui/Kbd';
 import Skeleton from '@/components/ui/Skeleton';
+import { useHiddenInput } from '@/hooks/useHiddenInput';
 import type { RunInfo } from '@/hooks/useTypingRun';
-import { canIndent, type EngineAction, type EngineState } from '@/lib/engine';
+import type { EngineAction, EngineState } from '@/lib/engine';
+import { TRANSITION } from '@/lib/motion';
 import type { Settings } from '@/lib/settings';
 
-/** The hidden textarea always holds this, so mobile Backspace has something to delete */
-const SENTINEL = ' ';
 const MIN_ROWS = 3;
 const MAX_ROWS = 9;
 const STREAM_ROWS = 7;
@@ -50,8 +42,6 @@ export default function TypingArena({
   onEditCustomText,
   inputRef,
 }: Props) {
-  const lastValue = useRef(SENTINEL);
-  const composing = useRef(false);
   const [focused, setFocused] = useState(false);
 
   const isTime = settings.mode === 'time';
@@ -70,15 +60,13 @@ export default function TypingArena({
     run && !run.streaming && state.text.length > 0 ? state.input.length / state.text.length : null;
   const isEmptyCustom = run?.language === 'custom' && run.text.length === 0;
 
-  const resetField = useCallback(() => {
-    const el = inputRef.current;
-    if (el) {
-      el.value = SENTINEL;
-      // Caret after the sentinel, so Backspace on a mobile keyboard always has it to delete
-      el.setSelectionRange(SENTINEL.length, SENTINEL.length);
-    }
-    lastValue.current = SENTINEL;
-  }, [inputRef]);
+  const { resetField, inputProps } = useHiddenInput({
+    inputRef,
+    state,
+    dispatch,
+    onRestart,
+    onFinish: canFinishManually ? onFinish : undefined,
+  });
 
   // A new run starts with a clean field
   const runId = run?.id;
@@ -89,67 +77,6 @@ export default function TypingArena({
   useEffect(() => {
     if (ready) inputRef.current?.focus({ preventScroll: true });
   }, [ready, inputRef]);
-
-  const typeText = (text: string) => {
-    const now = Date.now();
-    for (const ch of text) {
-      if (ch === '\n' || ch === '\r') dispatch({ type: 'enter', now });
-      else if (ch === '\t') dispatch({ type: 'indent', now });
-      else dispatch({ type: 'type', char: ch, now });
-    }
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.nativeEvent.isComposing) return;
-    const now = Date.now();
-
-    if (event.key === 'Tab') {
-      if (event.shiftKey) return; // Shift+Tab leaves the typing area
-      event.preventDefault();
-      if (canIndent(state)) dispatch({ type: 'indent', now });
-      else onRestart();
-      return;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (event.shiftKey && canFinishManually && running) onFinish();
-      else dispatch({ type: 'enter', now });
-      return;
-    }
-    if (event.key === 'Backspace') {
-      event.preventDefault();
-      dispatch({ type: 'backspace', word: event.ctrlKey || event.altKey || event.metaKey });
-    }
-  };
-
-  /**
-   * Characters arrive here rather than through keydown, because mobile keyboards and IMEs
-   * report most keys as "Unidentified". The field is diffed against its previous value.
-   */
-  const onInput = (event: FormEvent<HTMLTextAreaElement>) => {
-    const el = event.currentTarget;
-    const value = el.value;
-    const previous = lastValue.current;
-    // Diff on both ends: the caret may sit before the sentinel, so text can land on either side
-    let prefix = 0;
-    while (prefix < value.length && prefix < previous.length && value[prefix] === previous[prefix]) {
-      prefix++;
-    }
-    let suffix = 0;
-    while (
-      suffix < value.length - prefix &&
-      suffix < previous.length - prefix &&
-      value[value.length - 1 - suffix] === previous[previous.length - 1 - suffix]
-    ) {
-      suffix++;
-    }
-    const deleted = previous.length - prefix - suffix;
-    for (let i = 0; i < deleted; i++) dispatch({ type: 'backspace', word: false });
-    typeText(value.slice(prefix, value.length - suffix));
-
-    if (composing.current) lastValue.current = value;
-    else resetField();
-  };
 
   const focusInput = () => inputRef.current?.focus();
 
@@ -264,27 +191,10 @@ export default function TypingArena({
 
         {!isEmptyCustom && (
           <textarea
-            ref={inputRef}
-            defaultValue={SENTINEL}
+            {...inputProps}
             aria-label="Type the code shown. Tab restarts, Shift+Tab leaves the typing area."
             aria-describedby={run ? 'typing-target' : undefined}
-            autoCapitalize="off"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="enter"
             readOnly={state.status === 'finished'}
-            onKeyDown={onKeyDown}
-            onInput={onInput}
-            onPaste={(event) => event.preventDefault()}
-            onDrop={(event) => event.preventDefault()}
-            onCompositionStart={() => {
-              composing.current = true;
-            }}
-            onCompositionEnd={() => {
-              composing.current = false;
-              resetField();
-            }}
             onFocus={() => {
               setFocused(true);
               resetField();
@@ -301,7 +211,7 @@ export default function TypingArena({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={TRANSITION.fast}
               aria-hidden
               className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-surface/70 backdrop-blur-[3px]"
             >
@@ -317,7 +227,7 @@ export default function TypingArena({
       {/* Fixed-height progress bar keeps the layout steady across modes */}
       <div aria-hidden className="h-0.5 w-full overflow-hidden rounded-full bg-line">
         <div
-          className="h-full origin-left bg-accent-fill transition-transform duration-200"
+          className="h-full origin-left bg-accent-fill transition-transform duration-(--duration-base)"
           style={{
             transform: `scaleX(${
               isTime ? Math.min(1, elapsedMs / (settings.duration * 1000)) : (progress ?? 0)

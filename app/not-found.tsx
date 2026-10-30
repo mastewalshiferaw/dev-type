@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { ButtonLink } from '@/components/ui/Button';
 
 export const metadata: Metadata = { title: 'Page not found' };
 
@@ -18,12 +18,12 @@ export default function NotFound() {
           The page you are looking for was moved, deleted, or never compiled.
         </p>
       </div>
-      <Link
-        href="/"
-        className="inline-flex h-10 items-center rounded-md bg-accent-fill px-4 text-sm font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
-      >
-        Back to the typing test
-      </Link>
+      <div className="flex flex-wrap justify-center gap-4">
+        <ButtonLink href="/play">Back to the typing test</ButtonLink>
+        <ButtonLink href="/" variant="secondary">
+          Home
+        </ButtonLink>
+      </div>
     </main>
   );
 }
