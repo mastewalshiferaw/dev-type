@@ -1,22 +1,60 @@
-import type { Metadata } from "next";
-import { Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata, Viewport } from 'next';
+import { Fira_Code, Geist_Mono, JetBrains_Mono } from 'next/font/google';
+import ThemeSync from '@/components/layout/ThemeSync';
+import { SITE } from '@/lib/site';
+import { THEME_INIT_SCRIPT } from '@/lib/theme-script';
+import './globals.css';
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
+// Optional code fonts: only downloaded when selected in settings
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets: ['latin'],
+  preload: false,
 });
+const firaCode = Fira_Code({ variable: '--font-fira-code', subsets: ['latin'], preload: false });
 
 export const metadata: Metadata = {
-  title: "DEV_TYPE — typing test for developers",
-  description:
-    "A terminal-style typing test with real JavaScript, Python, Rust and C++ snippets. Track your WPM and climb the leaderboard.",
+  metadataBase: new URL(SITE.url),
+  title: { default: SITE.title, template: `%s · ${SITE.name}` },
+  description: SITE.description,
+  applicationName: SITE.name,
+  keywords: ['typing test', 'typing speed', 'wpm', 'code typing', 'programming', 'developer'],
+  openGraph: {
+    type: 'website',
+    siteName: SITE.name,
+    title: SITE.title,
+    description: SITE.description,
+    url: '/',
+  },
+  twitter: { card: 'summary_large_image', title: SITE.title, description: SITE.description },
+  alternates: { canonical: '/' },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f7f7f5' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+  ],
+  colorScheme: 'light dark',
+};
+
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    // data-theme is set by the inline script before paint, so React must not fight over it
+    <html
+      lang="en"
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${geistMono.variable} ${jetbrainsMono.variable} ${firaCode.variable} h-full antialiased`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="flex min-h-full flex-col">
+        <ThemeSync />
+        {children}
+      </body>
     </html>
   );
 }
