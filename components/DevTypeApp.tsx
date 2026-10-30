@@ -15,6 +15,7 @@ import { useTypingRun, type RunInfo } from '@/hooks/useTypingRun';
 import { computeStats, type EngineState } from '@/lib/engine';
 import { bestKey, bestsStore, recordRun, type RunRecord } from '@/lib/history';
 import { isRankedMode, modeKey, useSettings } from '@/lib/settings';
+import { TRANSITION } from '@/lib/motion';
 import { toggleTheme } from '@/lib/theme';
 
 /** Runs shorter than this, or with almost nothing typed, are shown but not saved */
@@ -92,7 +93,7 @@ export default function DevTypeApp() {
 
   useHotkeys([
     { code: 'KeyK', mod: true, handler: () => setPaletteOpen((open) => !open) },
-    { code: 'KeyL', mod: true, shift: true, handler: toggleTheme },
+    { code: 'KeyL', mod: true, shift: true, handler: () => toggleTheme() },
     { code: 'Comma', mod: true, handler: () => openSettings() },
   ]);
 
@@ -135,7 +136,7 @@ export default function DevTypeApp() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    transition={TRANSITION.base}
                   >
                     <ResultsPanel result={visibleResult} onNext={goNext} onRetry={goRetry} />
                   </motion.div>
@@ -145,7 +146,7 @@ export default function DevTypeApp() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    transition={TRANSITION.fast}
                   >
                     <TypingArena
                       state={state}
@@ -170,8 +171,9 @@ export default function DevTypeApp() {
 
         {/* Below the test on small screens, a sticky sidebar on large ones */}
         <aside
+          id="leaderboard"
           aria-label="Leaderboard"
-          className="w-full shrink-0 lg:sticky lg:top-8 lg:w-80 lg:self-start xl:w-96"
+          className="w-full shrink-0 scroll-mt-4 lg:sticky lg:top-8 lg:w-80 lg:self-start xl:w-96"
         >
           <Leaderboard onEditProfile={() => setProfileOpen(true)} />
         </aside>

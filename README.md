@@ -4,6 +4,18 @@ A typing-speed test for developers. Type real code in 15 languages, see WPM, acc
 over time, track personal bests, and climb a live leaderboard. Next.js (App Router), TypeScript and
 Tailwind CSS v4.
 
+## Routes
+
+| Route      | What it is                                                            |
+| ---------- | --------------------------------------------------------------------- |
+| `/`        | Landing page (route group `app/(marketing)`), with a live typing demo |
+| `/play`    | The typing test itself (`components/DevTypeApp.tsx`)                  |
+| `/privacy` | Privacy notice (placeholder wording, see below)                       |
+| `/terms`   | Terms (placeholder wording, see below)                                |
+
+The test moved from `/` to `/play`. Old links to `/` now land on the landing page, where every CTA leads
+to `/play`. The app's logo links back to `/`, and `/play#leaderboard` jumps to the live leaderboard.
+
 ## Setup
 
 Requires Node.js 20.9 or newer.
@@ -90,20 +102,33 @@ Any other backend only needs a new adapter with `list` and `submit`, registered 
 ## Project structure
 
 ```
-app/            layout (fonts, metadata, no-flash theme script), page, 404, icon, OG image, robots, sitemap
+app/            root layout (fonts, no-flash theme script), 404, icon, OG image, robots, sitemap
+  (marketing)/  landing page, privacy, terms, and their layout (navbar, footer, sans font)
+  play/         the typing test
 components/
   DevTypeApp.tsx      orchestrates the run, results, dialogs and global shortcuts
+  landing/            one folder per section (hero, languages, features, how-it-works, leaderboard,
+                      results, testimonials, faq, cta, footer, nav), plus LandingShell, Section
+                      (layout + headings) and LegalPage
+  motion/             motion primitives: Reveal, TextReveal, TypeIn, CountUp, Odometer, Magnetic,
+                      Marquee, SmoothScroll (Lenis), ScrollProgress, CustomCursor, SudoConfetti
+  splash/             the first-visit boot splash
   typing/             ConfigBar, TypingArena (hidden input), CodeView (rendering + caret), Timer
   results/            ResultsPanel, WpmChart (lazy-loaded)
-  leaderboard/        Leaderboard, Avatar
+  leaderboard/        Leaderboard, LeaderboardRow, RankMark, Avatar
   settings/           SettingsDrawer
-  command/            CommandPalette
-  layout/             Header, Footer, ThemeToggle, ThemeSync, ProfilePopover
-  ui/                 SegmentedControl, Select, Switch, Kbd, Skeleton
-hooks/          useTypingRun, useLeaderboard, useHotkeys, usePlatform
+  command/            CommandPalette, ThemeCommands
+  layout/             Header, Footer, Logo, PaletteButton, ThemeToggle, ThemeSync, ProfilePopover
+  ui/                 Button, CommandDialog, GitHubIcon, SegmentedControl, Select, SpotlightCard, Switch,
+                      Kbd, Skeleton
+hooks/          useTypingRun, useHiddenInput, useLeaderboard, useHotkeys, usePlatform,
+                useReducedMotion, useEnterOnce
 lib/            engine (pure typing reducer + stats), snippets (pick + transform), settings, theme,
-                history, profile, store (localStorage + useSyncExternalStore), leaderboard/ (data layer)
+                motion (shared timings), splash-script,
+                history, profile, avatar, fonts, site (+ pageMetadata), store (localStorage +
+                useSyncExternalStore), leaderboard/ (data layer)
 data/snippets/  one file per language, short / medium / long
+data/landing/   landing content: features, FAQ, languages, steps, navigation, demo snippets, samples
 ```
 
 ## Design tokens
@@ -112,18 +137,73 @@ Semantic colors are CSS variables in `app/globals.css`, switched by `data-theme`
 to Tailwind as `bg-canvas`, `text-muted` and so on. Every text token reaches WCAG AA (4.5:1) on `canvas`,
 `surface` and `raised` in both themes.
 
-| Token         | Light     | Dark      | Use                                              |
-| ------------- | --------- | --------- | ------------------------------------------------ |
-| `canvas`      | `#f7f7f5` | `#09090b` | Page background                                  |
-| `surface`     | `#ffffff` | `#18181b` | Cards, panels                                    |
-| `raised`      | `#efefec` | `#27272a` | Hover, active pills                              |
-| `line`        | `#e4e4e7` | `#27272a` | Borders                                          |
-| `ink`         | `#18181b` | `#f4f4f5` | Primary text                                     |
-| `muted`       | `#5f5f6a` | `#9a9aa4` | Secondary text, untyped code                     |
-| `accent`      | `#a34a06` | `#fbbf24` | Brand amber for text and icons                   |
-| `accent-fill` | `#f59e0b` | `#fbbf24` | Brand amber for button fills (with `accent-ink`) |
-| `success`     | `#047857` | `#34d399` | Correctly typed characters                       |
-| `danger`      | `#be123c` | `#fb7185` | Incorrect characters, errors                     |
+| Token                 | Light           | Dark              | Use                                              |
+| --------------------- | --------------- | ----------------- | ------------------------------------------------ |
+| `canvas`              | `#f8f6f1`       | `#09090b`         | Page background (warm paper in light mode)       |
+| `surface`             | `#fffefb`       | `#18181b`         | Cards, panels                                    |
+| `raised`              | `#f1ede4`       | `#27272a`         | Hover, active pills                              |
+| `line`, `line-strong` | ink at 8% / 15% | white at 8% / 14% | Borders (alpha, so they sit on any surface)      |
+| `ink`                 | `#1c1917`       | `#f4f4f5`         | Primary text                                     |
+| `ink-dim`             | `#44403c`       | `#c6c6ce`         | Lead paragraphs, secondary emphasis              |
+| `muted`               | `#625b53`       | `#a1a1ab`         | Secondary text, untyped code                     |
+| `accent`              | `#94400a`       | `#fbbf24`         | Brand amber for text and icons                   |
+| `accent-fill`         | `#f59e0b`       | `#fbbf24`         | Brand amber for button fills (with `accent-ink`) |
+| `success`             | `#046c4e`       | `#34d399`         | Correctly typed characters (app)                 |
+| `danger`              | `#be123c`       | `#fb7185`         | Incorrect characters, errors                     |
+
+Beyond color: radius `xs/sm/md/lg/xl` = 4/6/10/14/20px; elevation `shadow-panel` (resting), `shadow-lift`
+(featured), `shadow-modal` (dialogs), `shadow-cta` (primary button); fluid type `text-body`, `text-lead`,
+`text-h2`, `text-headline`, `text-display` (`clamp()`, -0.02em on headings). Motion uses three durations
+(120/200/320ms), one ease (`--ease-out`) and one spring; JavaScript reads the same values from
+`lib/motion.ts`, and `hooks/useReducedMotion.ts` is the only reduced-motion check in JS.
+
+## Landing page
+
+Every section reuses the app's tokens and components. The hero demo runs the real typing engine,
+`CodeView` and hidden-input hook (so phone keyboards work), the results showcase uses the app's
+`WpmChart`, and the leaderboard preview renders the same rows as the live board. Copy lives in
+`data/landing/`.
+
+- **Hero demo keys:** any letter (with nothing focused) starts it, **Tab** loads the next snippet (or
+  indents where indentation is expected), **Enter** types a new line (after finishing: opens `/play`),
+  **Escape** leaves the editor, **Shift+Tab** moves focus out. Stats stay at `0 wpm · 100% · 0s` until
+  the first key, WPM appears after 2 seconds, and a run left alone for 5 seconds resets.
+- **Boot splash** (`components/splash/`): first visit per browser session only. A head script
+  (`lib/splash-script.ts`) sets `html[data-splash]` before the first paint, so the overlay is there from
+  frame one in the right theme while the real page renders underneath (LCP and SEO are unaffected).
+  Any key or click skips it; reduced motion gets a 400ms fade; a CSS failsafe removes it after 6s if
+  JavaScript never arrives. To see it again, open a new tab or clear `devtype:booted` in sessionStorage.
+- **Motion system:** one stack, `motion` (Framer Motion), plus Lenis for inertial wheel scrolling
+  (mouse and trackpad only; touch and keyboard stay native). Shared timings live in `lib/motion.ts` and
+  the matching CSS tokens; `hooks/useReducedMotion.ts` is the single reduced-motion switch. Reusable
+  primitives in `components/motion/`: `Reveal`/`Stagger`/`RevealActive`, `TextReveal`, `TypeIn`,
+  `CountUp`, `Odometer`, `Magnetic`, `Marquee`, `SmoothScroll`, `ScrollProgress`, `CustomCursor`.
+  Every scroll entrance follows `hooks/useEnterOnce.ts`: the server renders the finished state, only
+  below-the-fold content is hidden after mount, and it plays once.
+- **Reduced motion:** no splash animation (fade), no Lenis, no parallax or pinning, no custom cursor or
+  tilt, no confetti; reveals are skipped, the marquee is one wrapped list and every illustration shows
+  its final frame.
+- **Easter egg:** type `sudo` anywhere on the home page.
+- **Performance:** every page is static. Recharts only loads when the results section gets close, the
+  landing command palette loads on first open, and fonts are self-hosted by `next/font` (Geist sans is
+  only downloaded by the landing and legal pages). The page has no raster images, so `next/image` has
+  nothing to optimize; every visual is CSS or SVG.
+- **SEO:** a title, description and canonical URL for each page (`pageMetadata` in `lib/site.ts`), Open
+  Graph and Twitter cards using the generated `/opengraph-image`, a sitemap with all four routes, and
+  `WebApplication` + `FAQPage` JSON-LD on the home page.
+
+### Placeholder content (replace before launch)
+
+| What                       | Where                                  |
+| -------------------------- | -------------------------------------- |
+| Testimonials (invented)    | `data/landing/testimonials.ts`         |
+| Leaderboard preview scores | `data/landing/leaderboard.ts`          |
+| Results showcase run       | `data/landing/showcase.ts`             |
+| Privacy and terms wording  | `app/(marketing)/privacy`, `.../terms` |
+
+The leaderboard and results samples are labelled "Sample" on the page. The hero's trust stats (15
+languages, 15s to 120s tests, free with no signup) are real, and the language count comes from the app's
+own language list.
 
 ## Assumptions
 
@@ -140,4 +220,7 @@ to Tailwind as `bg-canvas`, `text-muted` and so on. Every text token reaches WCA
 - **Consistency** is `100 × (1 − tanh(cv))` of per-second raw WPM, where `cv` is the coefficient of variation.
 - **Paste is blocked** in the typing area. "Skip comments" does not apply to custom text, since its
   language is unknown.
+- **The landing page uses the same theme store**, not next-themes, for the reason above.
+- **GitHub links** point at this repository (`SITE.repo` in `lib/site.ts`). The footer credit links to
+  github.com/Birabg.
 - **Motion** is the `motion` package (Framer Motion's current name), imported from `motion/react`.

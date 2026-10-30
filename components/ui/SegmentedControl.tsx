@@ -3,6 +3,7 @@
 import { motion } from 'motion/react';
 import { useId, useRef, type KeyboardEvent } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { SPRING } from '@/lib/motion';
 
 export interface SegmentedOption<T extends string | number> {
   value: T;
@@ -77,7 +78,7 @@ export default function SegmentedControl<T extends string | number>({
                 layoutId={pillId}
                 aria-hidden
                 className="absolute inset-0 rounded-md bg-raised shadow-[inset_0_0_0_1px_var(--color-line-strong)]"
-                transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                transition={SPRING}
               />
             )}
             <span className="relative">{option.label}</span>

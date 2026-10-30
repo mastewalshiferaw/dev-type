@@ -1,5 +1,7 @@
 'use client';
 
+import { ChevronDown } from 'lucide-react';
+import { useId, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -43,6 +45,9 @@ function ChartTooltip({ active, payload }: TooltipContentProps<TooltipValueType,
 }
 
 export default function WpmChart({ samples }: { samples: Sample[] }) {
+  const [tableOpen, setTableOpen] = useState(false);
+  const tableId = useId();
+
   if (samples.length < 2) {
     return (
       <p className="flex h-48 items-center justify-center rounded-lg border border-dashed border-line-strong text-xs text-muted">
@@ -52,13 +57,16 @@ export default function WpmChart({ samples }: { samples: Sample[] }) {
   }
 
   return (
-    <figure className="flex flex-col gap-1">
+    <figure
+      aria-label={`Speed over ${samples.length} seconds: from ${samples[0].wpm} to ${samples.at(-1)!.wpm} WPM, peaking at ${Math.max(...samples.map((s) => s.wpm))}`}
+      className="flex flex-col gap-1"
+    >
       <figcaption className="flex flex-wrap items-center justify-between gap-2">
         <span className="label text-muted">Speed over time</span>
         {/* Legend: identity never relies on color alone (solid vs dashed) */}
         <span className="flex items-center gap-4 text-xs text-ink-dim">
           {SERIES.map((series) => (
-            <span key={series.key} className="flex items-center gap-1.5">
+            <span key={series.key} className="flex items-center gap-2">
               <svg width="16" height="4" aria-hidden>
                 <line
                   x1="0"
@@ -73,7 +81,7 @@ export default function WpmChart({ samples }: { samples: Sample[] }) {
               {series.label}
             </span>
           ))}
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-2">
             <span aria-hidden className="size-2 rounded-xs bg-danger" />
             Errors
           </span>
@@ -135,25 +143,36 @@ export default function WpmChart({ samples }: { samples: Sample[] }) {
         </ResponsiveContainer>
       </div>
 
-      <details className="mt-1 text-xs">
-        <summary className="w-fit cursor-pointer rounded-sm text-muted transition-ui hover:text-ink">
-          View as table
-        </summary>
+      <button
+        type="button"
+        aria-expanded={tableOpen}
+        aria-controls={tableId}
+        onClick={() => setTableOpen((open) => !open)}
+        className="mt-1 -ml-1 flex min-h-8 w-fit items-center gap-1 rounded-sm px-1 text-xs text-muted transition-ui hover:text-ink active:translate-y-px"
+      >
+        <ChevronDown
+          size={14}
+          aria-hidden
+          className={`transition-transform duration-(--duration-base) ${tableOpen ? 'rotate-180' : ''}`}
+        />
+        {tableOpen ? 'Hide table' : 'View as table'}
+      </button>
+      <div id={tableId} hidden={!tableOpen} className="text-xs">
         <div className="mt-2 max-h-48 overflow-y-auto rounded-md border border-line">
           <table className="w-full text-left tabular-nums">
             <caption className="sr-only">WPM, raw WPM and errors per second</caption>
             <thead className="sticky top-0 bg-surface text-muted">
               <tr>
-                <th scope="col" className="px-3 py-1.5 font-semibold">
+                <th scope="col" className="px-3 py-2 font-semibold">
                   Second
                 </th>
-                <th scope="col" className="px-3 py-1.5 font-semibold">
+                <th scope="col" className="px-3 py-2 font-semibold">
                   WPM
                 </th>
-                <th scope="col" className="px-3 py-1.5 font-semibold">
+                <th scope="col" className="px-3 py-2 font-semibold">
                   Raw
                 </th>
-                <th scope="col" className="px-3 py-1.5 font-semibold">
+                <th scope="col" className="px-3 py-2 font-semibold">
                   Errors
                 </th>
               </tr>
@@ -170,7 +189,7 @@ export default function WpmChart({ samples }: { samples: Sample[] }) {
             </tbody>
           </table>
         </div>
-      </details>
+      </div>
     </figure>
   );
 }

@@ -12,6 +12,8 @@ interface Props {
   ligatures: boolean;
   /** Visible text rows; the view scrolls inside this fixed height */
   rows: number;
+  /** Color for correctly typed text: green in the app, plain text in the landing demo */
+  tone?: 'success' | 'ink';
 }
 
 type SegmentKind = 'correct' | 'incorrect' | 'untyped' | 'newline-typed' | 'newline';
@@ -60,6 +62,12 @@ const KIND_CLASS: Record<SegmentKind, string> = {
   newline: 'text-muted opacity-50',
 };
 
+const INK_CLASS: Record<SegmentKind, string> = {
+  ...KIND_CLASS,
+  correct: 'text-ink',
+  'newline-typed': 'text-ink opacity-50',
+};
+
 /** Index of the segment containing `index` (segments are sorted by start). */
 function findSegment(segments: Segment[], index: number): number {
   let lo = 0;
@@ -72,7 +80,7 @@ function findSegment(segments: Segment[], index: number): number {
   return lo;
 }
 
-function CodeView({ text, input, cursorStyle, font, fontSize, ligatures, rows }: Props) {
+function CodeView({ text, input, cursorStyle, font, fontSize, ligatures, rows, tone = 'success' }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLPreElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
@@ -154,12 +162,12 @@ function CodeView({ text, input, cursorStyle, font, fontSize, ligatures, rows }:
     >
       <pre
         ref={contentRef}
-        className="relative m-0 font-[inherit] break-words whitespace-pre-wrap [tab-size:4] motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out"
+        className="relative m-0 font-[inherit] break-words whitespace-pre-wrap [tab-size:4] motion-safe:transition-transform motion-safe:duration-(--duration-fast) motion-safe:ease-out"
       >
         <span
           ref={caretRef}
           hidden
-          className={`pointer-events-none absolute top-0 left-0 rounded-[1px] data-ready:transition-transform data-ready:duration-100 data-ready:ease-out ${
+          className={`pointer-events-none absolute top-0 left-0 rounded-xs data-ready:transition-transform data-ready:duration-(--duration-fast) data-ready:ease-out ${
             cursorStyle === 'block' ? 'bg-caret/35' : 'bg-caret'
           }`}
         />
@@ -169,7 +177,7 @@ function CodeView({ text, input, cursorStyle, font, fontSize, ligatures, rows }:
             ref={(el) => {
               segmentRefs.current[i] = el;
             }}
-            className={KIND_CLASS[segment.kind]}
+            className={tone === 'ink' ? INK_CLASS[segment.kind] : KIND_CLASS[segment.kind]}
           >
             {segment.text}
           </span>
