@@ -53,6 +53,7 @@ export default function LeaderboardPreview() {
                   key={leader.username}
                   rank={i + 1}
                   username={leader.username}
+                  language={leader.language}
                   className={i === 0 ? 'shine' : ''}
                   wpm={<Odometer value={leader.wpm} delay={0.2 + i * 0.06} />}
                   accuracy={<CountUp value={leader.accuracy} decimals={1} />}

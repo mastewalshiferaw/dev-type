@@ -68,7 +68,7 @@ export default function Hero() {
           <span aria-hidden className="font-bold text-accent">
             &gt;_
           </span>
-          The typing test for people who ship code
+          How fast are you in typing codes?
         </p>
 
         {/* 22ch keeps the headline on one line wherever it fits, and two balanced lines on phones */}

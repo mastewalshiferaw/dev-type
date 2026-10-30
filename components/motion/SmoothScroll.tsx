@@ -1,6 +1,6 @@
 'use client';
 
-import type Lenis from 'lenis';
+import type Lenis from '@studio-freight/lenis';
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { FINE_POINTER, isSplashActive, NAV_OFFSET, SPLASH_END_EVENT } from '@/lib/motion';
@@ -30,7 +30,7 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
     let frame = 0;
     const onSplashEnd = () => lenisRef.current?.start();
 
-    import('lenis').then(({ default: LenisClass }) => {
+    import('@studio-freight/lenis').then(({ default: LenisClass }) => {
       if (cancelled) return;
       const lenis = new LenisClass({ lerp: 0.1, smoothWheel: true });
       lenisRef.current = lenis;

@@ -72,6 +72,16 @@ export function languageLabel(language: LanguageFilter | 'mixed' | 'custom'): st
   return LANGUAGES[language].label;
 }
 
+export function leaderboardLanguageLabel(language?: string): string {
+  if (!language) return 'Mixed';
+  const lower = language.toLowerCase();
+  if (lower === 'all') return 'All';
+  if (lower === 'mixed') return 'Mixed';
+  if (lower === 'html') return 'HTML';
+  if (isLanguageId(lower)) return LANGUAGES[lower].label;
+  return language;
+}
+
 export function isLanguageId(value: unknown): value is LanguageId {
   return typeof value === 'string' && (LANGUAGE_IDS as readonly string[]).includes(value);
 }

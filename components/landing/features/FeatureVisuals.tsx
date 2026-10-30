@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import Avatar from '@/components/leaderboard/Avatar';
 import CountUp from '@/components/motion/CountUp';
 import { SHOWCASE_SAMPLES, SHOWCASE_STATS } from '@/data/landing/showcase';
+import { leaderboardLanguageLabel } from '@/lib/languages';
 import { useModKey } from '@/hooks/usePlatform';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { DURATION, EASE, SPRING, TRANSITION } from '@/lib/motion';
@@ -167,19 +168,19 @@ export function StatsVisual() {
 
 const ROUNDS = [
   [
-    { name: 'vim_queen', wpm: 117 },
-    { name: 'async_ada', wpm: 112 },
-    { name: 'go_gopher', wpm: 104 },
+    { name: 'vim_queen', wpm: 117, language: 'python' },
+    { name: 'async_ada', wpm: 112, language: 'html' },
+    { name: 'go_gopher', wpm: 104, language: 'all' },
   ],
   [
-    { name: 'async_ada', wpm: 121 },
-    { name: 'vim_queen', wpm: 117 },
-    { name: 'go_gopher', wpm: 104 },
+    { name: 'async_ada', wpm: 121, language: 'html' },
+    { name: 'vim_queen', wpm: 117, language: 'python' },
+    { name: 'go_gopher', wpm: 104, language: 'all' },
   ],
   [
-    { name: 'async_ada', wpm: 121 },
-    { name: 'go_gopher', wpm: 119 },
-    { name: 'vim_queen', wpm: 117 },
+    { name: 'async_ada', wpm: 121, language: 'html' },
+    { name: 'go_gopher', wpm: 119, language: 'all' },
+    { name: 'vim_queen', wpm: 117, language: 'python' },
   ],
 ];
 
@@ -199,11 +200,29 @@ export function LeaderboardVisual() {
             key={player.name}
             layout
             transition={SPRING}
-            className={`flex items-center gap-3 rounded-sm px-2 py-1 ${i === 0 ? 'bg-raised' : ''}`}
+            className={`relative flex items-center gap-3 rounded-sm px-2 py-1 transition-colors hover:z-20 ${i === 0 ? 'bg-raised' : ''}`}
           >
             <span className="w-3 text-xs font-semibold text-muted tabular-nums">{i + 1}</span>
             <Avatar name={player.name} size="sm" />
-            <span className="flex-1 truncate text-xs text-ink">{player.name}</span>
+            <div className="relative group/name min-w-0 flex-1">
+              <span
+                tabIndex={0}
+                className="truncate block text-xs text-ink cursor-pointer transition-colors group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
+                title={`${player.name} · Language: ${leaderboardLanguageLabel(player.language)}`}
+              >
+                {player.name}
+              </span>
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/name:flex group-focus-within/name:flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line-strong bg-surface px-2.5 py-1 text-2xs font-medium text-ink shadow-panel z-30 animate-pop"
+              >
+                <span className="text-muted">Language:</span>
+                <span className="font-semibold text-accent">
+                  {leaderboardLanguageLabel(player.language)}
+                </span>
+                <span className="absolute -bottom-1 left-4 size-2 -translate-x-1/2 rotate-45 border-b border-r border-line-strong bg-surface" />
+              </div>
+            </div>
             <span className="text-xs font-bold text-ink tabular-nums">{player.wpm}</span>
           </motion.li>
         ))}

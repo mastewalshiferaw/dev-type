@@ -9,7 +9,7 @@ import Select from '@/components/ui/Select';
 import Skeleton from '@/components/ui/Skeleton';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { TIMEFRAMES, type Timeframe } from '@/lib/leaderboard';
-import { LANGUAGE_FILTER_OPTIONS, type LanguageFilter } from '@/lib/languages';
+import { LANGUAGE_FILTER_OPTIONS, leaderboardLanguageLabel, type LanguageFilter } from '@/lib/languages';
 import { useProfile } from '@/lib/profile';
 
 const LIMIT = 10;
@@ -105,6 +105,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
                 key={entry.id}
                 rank={entry.rank}
                 username={entry.username}
+                language={entry.language}
                 wpm={entry.wpm}
                 accuracy={entry.accuracy}
                 isYou={entry.id === you?.id}
@@ -136,7 +137,31 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
               </span>
             )}
             {username ? (
-              <span className="truncate text-xs font-semibold text-ink">{username}</span>
+              <div className="relative group/name min-w-0">
+                <span
+                  tabIndex={0}
+                  className="truncate block text-xs font-semibold text-ink transition-colors cursor-pointer group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
+                  title={
+                    you?.language
+                      ? `${username} · Language: ${leaderboardLanguageLabel(you.language)}`
+                      : username
+                  }
+                >
+                  {username}
+                </span>
+                {you?.language && (
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/name:flex group-focus-within/name:flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line-strong bg-surface px-2.5 py-1 text-2xs font-medium text-ink shadow-panel z-30 animate-pop"
+                  >
+                    <span className="text-muted">Language:</span>
+                    <span className="font-semibold text-accent">
+                      {leaderboardLanguageLabel(you.language)}
+                    </span>
+                    <span className="absolute -bottom-1 left-4 size-2 -translate-x-1/2 rotate-45 border-b border-r border-line-strong bg-surface" />
+                  </div>
+                )}
+              </div>
             ) : (
               <button
                 type="button"
