@@ -19,6 +19,7 @@ export const FOOTER_COLUMNS: readonly { title: string; links: readonly NavLink[]
     title: 'Product',
     links: [
       { label: 'Start typing', href: '/play' },
+      { label: 'Account & Streaks', href: '/account' },
       { label: 'Live leaderboard', href: '/play#leaderboard' },
       { label: 'Features', href: '/#features' },
       { label: 'Languages', href: '/#languages' },

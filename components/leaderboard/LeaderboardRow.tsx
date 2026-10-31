@@ -37,15 +37,15 @@ export default function LeaderboardRow({
       } ${outerClassName}`}
     >
       {isShine && (
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg shine" />
+        <div aria-hidden className="shine pointer-events-none absolute inset-0 overflow-hidden rounded-lg" />
       )}
       <div className="flex min-w-0 items-center gap-3">
         <RankMark rank={rank} />
         <Avatar name={username} />
-        <div className="relative group/name min-w-0">
+        <div className="group/name relative min-w-0">
           <span
             tabIndex={0}
-            className="truncate block text-sm font-medium text-ink transition-colors cursor-pointer group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
+            className="block cursor-pointer truncate text-sm font-medium text-ink transition-colors group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
             title={`${username} · Language: ${displayLanguage}`}
           >
             {username}
@@ -53,11 +53,11 @@ export default function LeaderboardRow({
           </span>
           <div
             role="tooltip"
-            className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/name:flex group-focus-within/name:flex items-center gap-1.5 whitespace-nowrap rounded-md border border-line-strong bg-surface px-2.5 py-1 text-2xs font-medium text-ink shadow-panel z-30 animate-pop"
+            className="pointer-events-none absolute bottom-full left-0 z-30 mb-1.5 hidden animate-pop items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2.5 py-1 text-2xs font-medium whitespace-nowrap text-ink shadow-panel group-focus-within/name:flex group-hover/name:flex"
           >
             <span className="text-muted">Language:</span>
             <span className="font-semibold text-accent">{displayLanguage}</span>
-            <span className="absolute -bottom-1 left-4 size-2 -translate-x-1/2 rotate-45 border-b border-r border-line-strong bg-surface" />
+            <span className="absolute -bottom-1 left-4 size-2 -translate-x-1/2 rotate-45 border-r border-b border-line-strong bg-surface" />
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { Settings2 } from 'lucide-react';
 import Logo from '@/components/layout/Logo';
 import PaletteButton from '@/components/layout/PaletteButton';
 import ProfilePopover from '@/components/layout/ProfilePopover';
+import StreakBadge from '@/components/streak/StreakBadge';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 
 interface Props {
@@ -20,7 +21,8 @@ export default function Header({ onOpenPalette, onOpenSettings, profileOpen, onP
   return (
     <header className="flex items-center justify-between gap-4">
       <Logo />
-      <nav aria-label="App" className="flex items-center gap-1">
+      <nav aria-label="App" className="flex items-center gap-2">
+        <StreakBadge />
         <PaletteButton onClick={onOpenPalette} />
         <button type="button" onClick={onOpenSettings} aria-label="Open settings" className={ICON_BUTTON}>
           <Settings2 size={18} aria-hidden />

@@ -3,6 +3,7 @@
 import {
   ArrowRight,
   Code2,
+  Flame,
   RefreshCw,
   Settings2,
   SlidersHorizontal,
@@ -10,6 +11,7 @@ import {
   ToggleLeft,
   UserRound,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import ThemeCommands from '@/components/command/ThemeCommands';
 import CommandDialog, { CommandGroup, CommandItem as Item } from '@/components/ui/CommandDialog';
 import { LANGUAGE_FILTER_OPTIONS } from '@/lib/languages';
@@ -41,6 +43,7 @@ export default function CommandPalette({
   onOpenSettings,
   onOpenProfile,
 }: Props) {
+  const router = useRouter();
   const settings = useSettings();
 
   // Every command closes the palette after running
@@ -64,6 +67,13 @@ export default function CommandPalette({
         </Item>
         <Item icon={UserRound} onSelect={run(onOpenProfile)} keywords={['username', 'history']}>
           Edit profile
+        </Item>
+        <Item
+          icon={Flame}
+          onSelect={run(() => router.push('/account'))}
+          keywords={['account', 'streak', 'heatmap', 'contributions', 'stats']}
+        >
+          View account & streaks
         </Item>
       </CommandGroup>
 

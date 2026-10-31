@@ -14,6 +14,7 @@ import { useHotkeys } from '@/hooks/useHotkeys';
 import { useTypingRun, type RunInfo } from '@/hooks/useTypingRun';
 import { computeStats, type EngineState } from '@/lib/engine';
 import { bestKey, bestsStore, recordRun, type RunRecord } from '@/lib/history';
+import { addPracticeLog } from '@/lib/logs';
 import { isRankedMode, modeKey, useSettings } from '@/lib/settings';
 import { TRANSITION } from '@/lib/motion';
 import { toggleTheme } from '@/lib/theme';
@@ -42,6 +43,18 @@ export default function DevTypeApp() {
         modeKey: modeKey(settings),
       };
       const saved = stats.durationMs >= MIN_SAVED_MS && correctChars >= MIN_SAVED_CHARS;
+      if (saved) {
+        addPracticeLog({
+          wpm: record.wpm,
+          raw: record.raw,
+          accuracy: record.accuracy,
+          consistency: record.consistency,
+          durationMs: record.durationMs,
+          language: record.language,
+          modeKey: record.modeKey,
+          createdAt: record.createdAt,
+        });
+      }
       const outcome = saved
         ? recordRun(record)
         : {

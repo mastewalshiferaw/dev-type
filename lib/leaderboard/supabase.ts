@@ -1,5 +1,6 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/supabase-js';
 import { isLanguageId } from '@/lib/languages';
+import { getSupabase } from '@/lib/supabase';
 import { rankEntries, timeframeStart } from './rank';
 import type { LeaderboardEntry, LeaderboardProvider, ScoreLanguage } from './types';
 
@@ -21,14 +22,9 @@ interface ScoreRow {
   created_at: string;
 }
 
-let client: SupabaseClient | null = null;
-
 function getClient(): SupabaseClient {
-  if (client) return client;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) throw new Error('Supabase URL and anon key are not configured');
-  client = createClient(url, key);
+  const client = getSupabase();
+  if (!client) throw new Error('Supabase URL and anon key are not configured');
   return client;
 }
 

@@ -10,6 +10,7 @@ Tailwind CSS v4.
 | ---------- | --------------------------------------------------------------------- |
 | `/`        | Landing page (route group `app/(marketing)`), with a live typing demo |
 | `/play`    | The typing test itself (`components/DevTypeApp.tsx`)                  |
+| `/account` | User account dashboard: streaks, GitHub commit blocks, focus chart    |
 | `/privacy` | Privacy notice (placeholder wording, see below)                       |
 | `/terms`   | Terms (placeholder wording, see below)                                |
 
@@ -60,6 +61,31 @@ create index if not exists scores_created_wpm on scores (created_at desc, wpm de
 ```
 
 Any other backend only needs a new adapter with `list` and `submit`, registered in `lib/leaderboard/index.ts`.
+
+### Authentication & User Logs
+
+DEV_TYPE includes complete user authentication (Supabase Auth with local guest support), practice logs, Duolingo fire streaks, and GitHub contribution activity blocks:
+
+- **Auth**: Sign in, sign up, or continue as a guest. All sessions and logs sync across devices when logged in.
+- **Duolingo Fire Streak**: Completing at least one practice test per day keeps your flame lit 🔥.
+- **GitHub Contribution Blocks**: A 52-week calendar heatmap showing daily commit and typing activity with intensity squares.
+- **Language Focus Graph**: Real-time breakdown and timeline chart tracking which languages you focus on over time.
+
+Optional remote table for cloud syncing user practice logs:
+
+```sql
+create table if not exists user_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  wpm integer not null,
+  accuracy integer not null,
+  language text,
+  mode text,
+  duration_ms integer,
+  created_at timestamptz default now()
+);
+create index if not exists user_logs_user_id on user_logs (user_id, created_at desc);
+```
 
 ## Features
 

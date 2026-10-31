@@ -3,12 +3,14 @@
 import confetti from 'canvas-confetti';
 import { motion } from 'motion/react';
 import dynamic from 'next/dynamic';
-import { ArrowRight, Check, Crown, Loader2, RotateCcw, Upload } from 'lucide-react';
+import { ArrowRight, Check, Crown, Flame, Loader2, RotateCcw, Upload } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Skeleton from '@/components/ui/Skeleton';
 import { submitScore } from '@/hooks/useLeaderboard';
 import type { Sample } from '@/lib/engine';
 import type { RunRecord } from '@/lib/history';
+import { usePracticeLogs } from '@/lib/logs';
+import { calculateStreak } from '@/lib/streak';
 import { languageLabel } from '@/lib/languages';
 import { setUsername, USERNAME_HINT, USERNAME_PATTERN, useProfile } from '@/lib/profile';
 import { modeKeyLabel } from '@/lib/settings';
@@ -149,6 +151,8 @@ function SubmitScore({ record }: { record: RunRecord }) {
 export default function ResultsPanel({ result, onNext, onRetry }: Props) {
   const { record, samples, isPersonalBest, previousBest, saved, ranked } = result;
   const panelRef = useRef<HTMLElement>(null);
+  const logs = usePracticeLogs();
+  const streak = calculateStreak(logs);
 
   // Focus the panel, not a button: keys still being typed when time runs out must not
   // activate "Next snippet" and throw the results away
@@ -184,12 +188,20 @@ export default function ResultsPanel({ result, onNext, onRetry }: Props) {
             {languageLabel(record.language)} · {modeKeyLabel(record.modeKey)}
           </p>
         </div>
-        {saved && isPersonalBest && (
-          <p className="flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent-fill/15 px-3 py-1 text-xs font-semibold text-accent">
-            <Crown size={14} aria-hidden />
-            {previousBest ? `New personal best (+${record.wpm - previousBest.wpm})` : 'First personal best'}
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {saved && (
+            <p className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <Flame size={14} className="animate-pulse fill-amber-500" />
+              {streak.currentStreak} Day Streak 🔥
+            </p>
+          )}
+          {saved && isPersonalBest && (
+            <p className="flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent-fill/15 px-3 py-1 text-xs font-semibold text-accent">
+              <Crown size={14} aria-hidden />
+              {previousBest ? `New personal best (+${record.wpm - previousBest.wpm})` : 'First personal best'}
+            </p>
+          )}
+        </div>
       </motion.header>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
