@@ -76,7 +76,7 @@ Optional remote table for cloud syncing user practice logs:
 ```sql
 create table if not exists user_logs (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
   wpm integer not null,
   accuracy integer not null,
   language text,
@@ -85,6 +85,14 @@ create table if not exists user_logs (
   created_at timestamptz default now()
 );
 create index if not exists user_logs_user_id on user_logs (user_id, created_at desc);
+
+-- The anon key ships to every browser, so the table must be locked down: each signed-in user can
+-- only read and write their own rows. Without this, anyone could read or delete every user's logs.
+alter table user_logs enable row level security;
+create policy "Users manage their own logs" on user_logs
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 ```
 
 ## Features
