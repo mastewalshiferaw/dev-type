@@ -11,7 +11,7 @@ import { useHiddenInput } from '@/hooks/useHiddenInput';
 import type { RunInfo } from '@/hooks/useTypingRun';
 import type { EngineAction, EngineState } from '@/lib/engine';
 import { TRANSITION } from '@/lib/motion';
-import type { Settings } from '@/lib/settings';
+import { updateSettings, type Duration, type Settings } from '@/lib/settings';
 
 const MIN_ROWS = 3;
 const MAX_ROWS = 9;
@@ -80,6 +80,12 @@ export default function TypingArena({
 
   const focusInput = () => inputRef.current?.focus();
 
+  const handleSelectDuration = (duration: Duration) => {
+    updateSettings({ duration, mode: 'time' });
+    onRestart();
+    focusInput();
+  };
+
   const announcement = !running
     ? state.status === 'finished'
       ? 'Run finished.'
@@ -94,7 +100,13 @@ export default function TypingArena({
       <div className="flex min-h-12 items-center justify-between gap-3">
         <div className="flex items-baseline gap-5">
           <div role="timer" aria-label={isTime ? 'Time remaining' : 'Time elapsed'}>
-            <Timer seconds={seconds} countdown={isTime} urgent={isTime && running && seconds <= 5} />
+            <Timer
+              seconds={seconds}
+              countdown={isTime}
+              urgent={isTime && running && seconds <= 5}
+              currentDuration={settings.duration}
+              onSelectDuration={handleSelectDuration}
+            />
           </div>
           <p className="hidden items-baseline gap-1.5 text-muted tabular-nums sm:flex" aria-hidden>
             <span className="min-w-[3ch] text-right text-lg font-semibold text-ink-dim">

@@ -260,12 +260,15 @@ const subscribeAuth = (listener: () => void) => {
   };
 };
 
-const getSnapshot = () => currentAuthState;
-const getServerSnapshot = (): AuthState => ({
+// Cached static constant (keeps reference identical on every call)
+const SERVER_SNAPSHOT: AuthState = {
   user: null,
   isLoading: true,
   isConfigured: true,
-});
+};
+
+const getSnapshot = () => currentAuthState;
+const getServerSnapshot = () => SERVER_SNAPSHOT;
 
 /**
  * Hook to read auth state in React components using useSyncExternalStore.

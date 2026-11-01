@@ -7,7 +7,7 @@ export const SITE = {
     'A typing test for people who type code, not prose. Practice real snippets in 15 languages, track WPM, accuracy and consistency, and climb the daily leaderboard.',
   url: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
   repo: 'https://github.com/mastewalshiferaw/dev-type',
-  author: { name: 'Bira Girma', url: 'https://github.com/Birabg' },
+  author: { name: 'mustCode', url: 'https://t.me/must_Code' },
 };
 
 /** Per-page title, description, canonical URL, Open Graph and Twitter card in one place. */

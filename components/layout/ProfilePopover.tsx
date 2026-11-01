@@ -1,7 +1,7 @@
 'use client';
 
 import * as Popover from '@radix-ui/react-popover';
-import { Check, Flame, History, LogIn, LogOut, Sparkles, Trash2, UserRound } from 'lucide-react';
+import { Check, Flame, History, LogIn, LogOut, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import AuthModal from '@/components/auth/AuthModal';
@@ -141,7 +141,7 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
               <div className="rounded-lg border border-accent/20 bg-accent/5 p-2.5 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 font-semibold text-accent-strong">
-                    <Sparkles size={14} className="text-accent" />
+                   
                     Sync across devices
                   </div>
                   <button
