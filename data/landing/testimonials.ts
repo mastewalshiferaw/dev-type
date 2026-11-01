@@ -7,7 +7,7 @@ export const TESTIMONIALS = [
   },
   {
     quote:
-      '"Proud to be a contributor",
+      "Proud to be a contributor",
     name: 'Bira Girma',
     role: 'UI/UX Designer for _Dev_Type',
   },
