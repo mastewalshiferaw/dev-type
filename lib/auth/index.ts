@@ -195,7 +195,7 @@ export function signInAsGuest(customUsername?: string): AuthUser {
   const username =
     customUsername?.trim() ||
     currentProfile.username ||
-    `coder_${Math.random().toString(36).substring(2, 6)}`;
+    `guest_coder_${Math.random().toString(36).substring(2, 6)}`;
 
   const guestUser: AuthUser = {
     id: `guest_${Date.now()}`,
