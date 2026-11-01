@@ -3,10 +3,8 @@
 import { Moon, Sun } from 'lucide-react';
 import { AnimatePresence, motion, useInView } from 'motion/react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import Avatar from '@/components/leaderboard/Avatar';
 import CountUp from '@/components/motion/CountUp';
 import { SHOWCASE_SAMPLES, SHOWCASE_STATS } from '@/data/landing/showcase';
-import { leaderboardLanguageLabel } from '@/lib/languages';
 import { useModKey } from '@/hooks/usePlatform';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { DURATION, EASE, SPRING, TRANSITION } from '@/lib/motion';
@@ -19,6 +17,7 @@ function useSequence(ref: RefObject<Element | null>, last: number, intervalMs: n
   const inView = useInView(ref, { once: true, margin: '0px 0px -15% 0px' });
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0);
+
   useEffect(() => {
     if (!inView || reduce) return;
     const id = setInterval(() => {
@@ -29,6 +28,7 @@ function useSequence(ref: RefObject<Element | null>, last: number, intervalMs: n
     }, intervalMs);
     return () => clearInterval(id);
   }, [inView, reduce, last, intervalMs]);
+
   return reduce ? last : step;
 }
 
@@ -164,67 +164,29 @@ export function StatsVisual() {
   );
 }
 
-/* Leaderboard: three players trading places, settling on the final standings */
-
-const ROUNDS = [
-  [
-    { name: 'vim_queen', wpm: 117, language: 'python' },
-    { name: 'async_ada', wpm: 112, language: 'html' },
-    { name: 'go_gopher', wpm: 104, language: 'all' },
-  ],
-  [
-    { name: 'async_ada', wpm: 121, language: 'html' },
-    { name: 'vim_queen', wpm: 117, language: 'python' },
-    { name: 'go_gopher', wpm: 104, language: 'all' },
-  ],
-  [
-    { name: 'async_ada', wpm: 121, language: 'html' },
-    { name: 'go_gopher', wpm: 119, language: 'all' },
-    { name: 'vim_queen', wpm: 117, language: 'python' },
-  ],
-];
+/* Leaderboard: clean empty state waiting for real community racers */
 
 export function LeaderboardVisual() {
-  const ref = useRef<HTMLOListElement>(null);
-  const round = useSequence(ref, ROUNDS.length - 1, 1200);
+  const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="flex h-full flex-col justify-center gap-2 p-6">
+    <div ref={ref} className="flex h-full flex-col justify-center items-center text-center p-6 gap-3 select-none">
       <p className="flex items-center gap-2 text-2xs text-muted">
         <span className="size-2 rounded-full bg-success" />
         Live sprint (24h)
       </p>
-      <ol ref={ref} className="flex flex-col gap-1">
-        {ROUNDS[round].map((player, i) => (
-          <motion.li
-            key={player.name}
-            layout
-            transition={SPRING}
-            className={`relative flex items-center gap-3 rounded-sm px-2 py-1 transition-colors hover:z-20 ${i === 0 ? 'bg-raised' : ''}`}
-          >
-            <span className="w-3 text-xs font-semibold text-muted tabular-nums">{i + 1}</span>
-            <Avatar name={player.name} size="sm" />
-            <div className="group/name relative min-w-0 flex-1">
-              <span
-                tabIndex={0}
-                className="block cursor-pointer truncate text-xs text-ink transition-colors group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
-                title={`${player.name} · Language: ${leaderboardLanguageLabel(player.language)}`}
-              >
-                {player.name}
-              </span>
-              <div
-                role="tooltip"
-                className="pointer-events-none absolute bottom-full left-0 z-30 mb-1.5 hidden animate-pop items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2.5 py-1 text-2xs font-medium whitespace-nowrap text-ink shadow-panel group-focus-within/name:flex group-hover/name:flex"
-              >
-                <span className="text-muted">Language:</span>
-                <span className="font-semibold text-accent">{leaderboardLanguageLabel(player.language)}</span>
-                <span className="absolute -bottom-1 left-4 size-2 -translate-x-1/2 rotate-45 border-r border-b border-line-strong bg-surface" />
-              </div>
-            </div>
-            <span className="text-xs font-bold text-ink tabular-nums">{player.wpm}</span>
-          </motion.li>
-        ))}
-      </ol>
+      <div className="flex flex-col items-center justify-center gap-2 w-full rounded-md border border-line bg-surface/50 p-5 shadow-panel">
+        <div className="flex size-9 items-center justify-center rounded-full bg-raised text-base">
+          🏆
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-xs font-semibold text-ink">Leaderboard is open</p>
+          <p className="text-2xs text-muted">Waiting for today&apos;s sprint champion</p>
+        </div>
+        <span className="mt-1 inline-flex items-center rounded-sm bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent">
+          Claim rank #1
+        </span>
+      </div>
     </div>
   );
 }
@@ -291,7 +253,6 @@ export function ThemesVisual() {
 
   return (
     <div ref={ref} className="flex h-full flex-col justify-center gap-3 p-6">
-      {/* Two equal previews, each carrying its own theme so both palettes show at once */}
       <div className="grid grid-cols-2 gap-3">
         {(['light', 'dark'] as const).map((theme) => (
           <div
