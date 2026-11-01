@@ -90,7 +90,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                   {mode === 'signin' ? 'Sign In to DEV_TYPE' : 'Create an Account'}
                 </Dialog.Title>
                 <Dialog.Description className="text-2xs text-muted">
-                  Keep your streaks, GitHub activity blocks, and practice logs synced
+                  Keep your streaks, and practice logs synced
                 </Dialog.Description>
               </div>
             </div>
