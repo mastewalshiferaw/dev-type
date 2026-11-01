@@ -235,7 +235,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
             onClick={handleGuest}
             className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
           >
-            Continue as Guest (Local Only)
+            Continue as Guest 
           </button>
         </Dialog.Content>
       </Dialog.Portal>

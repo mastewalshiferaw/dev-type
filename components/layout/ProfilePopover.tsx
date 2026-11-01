@@ -49,7 +49,7 @@ function UsernameForm() {
           }}
           maxLength={18}
           autoComplete="nickname"
-          placeholder="e.g. vim_queen"
+          placeholder="e.g. username"
           aria-invalid={status === 'invalid'}
           aria-describedby="profile-username-hint"
           className="h-9 min-w-0 flex-1 rounded-md border border-line-strong bg-canvas px-3 text-sm text-ink transition-ui placeholder:text-muted focus:border-accent focus:outline-none"
