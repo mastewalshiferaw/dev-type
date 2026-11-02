@@ -8,6 +8,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import AuthModal from '@/components/auth/AuthModal';
 import ContributionGraph from '@/components/account/ContributionGraph';
 import LanguageFocusChart from '@/components/account/LanguageFocusChart';
+import TestimonialCard from '@/components/account/TestimonialCard';
 import Avatar from '@/components/leaderboard/Avatar';
 import { useAuth, signOut } from '@/lib/auth';
 import { leaderboardLanguageLabel } from '@/lib/languages';
@@ -221,6 +222,17 @@ export default function AccountView() {
 
       {/* Language Focus Over Time Graph */}
       <LanguageFocusChart logs={logs} />
+
+      {/* Community Testimonial Submission */}
+      <TestimonialCard
+        user={user}
+        bestWpm={bestWpm}
+        totalRuns={totalRuns}
+        onOpenAuth={() => {
+          setAuthMode('signin');
+          setAuthModalOpen(true);
+        }}
+      />
 
       {/* Recent Practice Logs Table */}
       <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
