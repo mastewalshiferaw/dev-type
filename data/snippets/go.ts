@@ -6,7 +6,16 @@ export const go: SnippetSet = {
 	return a + b
 }`,
     `names := []string{"ada", "linus", "grace"}
-fmt.Println(len(names))`,
+for i, name := range names {
+	fmt.Printf("%d: %s\\n", i, name)
+}`,
+    `type Point struct {
+	X, Y float64
+}
+
+func (p Point) IsZero() bool {
+	return p.X == 0 && p.Y == 0
+}`,
   ],
   medium: [
     `func readConfig(path string) ([]byte, error) {
@@ -16,13 +25,19 @@ fmt.Println(len(names))`,
 	}
 	return data, nil
 }`,
-    `// Sum adds every value in the slice
-func Sum[T int | float64](values []T) T {
+    `func Sum[T int | float64](values []T) T {
 	var total T
 	for _, v := range values {
 		total += v
 	}
 	return total
+}`,
+    `func Map[T, U any](ts []T, fn func(T) U) []U {
+	us := make([]U, len(ts))
+	for i, t := range ts {
+		us[i] = fn(t)
+	}
+	return us
 }`,
   ],
   long: [
@@ -51,13 +66,30 @@ func main() {
 func NewServer(addr string) *Server {
 	s := &Server{mux: http.NewServeMux(), addr: addr}
 	s.mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK) // always healthy for now
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
 	})
 	return s
 }
 
 func (s *Server) Run() error {
 	return http.ListenAndServe(s.addr, s.mux)
+}`,
+    `type SafeCounter struct {
+	mu sync.Mutex
+	v  map[string]int
+}
+
+func (c *SafeCounter) Inc(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.v[key]++
+}
+
+func (c *SafeCounter) Value(key string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.v[key]
 }`,
   ],
 };

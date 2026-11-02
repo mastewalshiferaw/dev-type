@@ -23,7 +23,8 @@ export function rankEntries(
   for (const entry of entries) {
     if (Date.parse(entry.createdAt) < since) continue;
     if (query.language !== 'all' && entry.language !== query.language) continue;
-    const key = entry.username.toLowerCase();
+    // Prefer userId for identity deduplication (DEV-006); fallback to lowercase username
+    const key = entry.userId ? `uid:${entry.userId}` : `name:${entry.username.toLowerCase()}`;
     const current = best.get(key);
     if (
       !current ||
@@ -43,8 +44,13 @@ export function rankEntries(
   });
 
   const username = query.username?.toLowerCase();
+  const userId = query.userId;
+  const you =
+    (userId ? ranked.find((e) => e.userId === userId) : null) ??
+    (username ? (ranked.find((e) => e.username.toLowerCase() === username) ?? null) : null);
+
   return {
     entries: ranked.slice(0, query.limit),
-    you: username ? (ranked.find((e) => e.username.toLowerCase() === username) ?? null) : null,
+    you,
   };
 }

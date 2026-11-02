@@ -32,6 +32,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(re
  * hero plays its entrance behind it. Any key or click skips. Reduced motion: a 400ms fade.
  */
 export default function Splash() {
+  const [mounted, setMounted] = useState(false);
   const [done, setDone] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
@@ -44,6 +45,7 @@ export default function Splash() {
   const hintRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
+    setMounted(true);
     const html = document.documentElement;
     const mode = html.getAttribute('data-splash');
     if (!mode) return;
@@ -174,7 +176,7 @@ export default function Splash() {
     };
   }, []);
 
-  if (done) return null;
+  if (done || !mounted) return null;
 
   return (
     <div ref={rootRef} aria-hidden className="splash fixed inset-0 z-[70] cursor-default select-none">

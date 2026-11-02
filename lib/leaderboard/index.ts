@@ -9,9 +9,12 @@ export * from './types';
 let provider: Promise<LeaderboardProvider> | null = null;
 
 export function getLeaderboard(): Promise<LeaderboardProvider> {
-  provider ??=
-    process.env.NEXT_PUBLIC_LEADERBOARD_PROVIDER === 'supabase'
-      ? import('./supabase').then((m) => m.supabaseProvider)
-      : import('./mock').then((m) => m.mockProvider);
+  const shouldUseSupabase =
+    process.env.NEXT_PUBLIC_LEADERBOARD_PROVIDER === 'supabase' ||
+    (process.env.NEXT_PUBLIC_LEADERBOARD_PROVIDER !== 'mock' && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL));
+
+  provider ??= shouldUseSupabase
+    ? import('./supabase').then((m) => m.supabaseProvider)
+    : import('./mock').then((m) => m.mockProvider);
   return provider;
 }

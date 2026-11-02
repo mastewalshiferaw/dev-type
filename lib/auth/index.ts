@@ -17,7 +17,7 @@ const guestStore = createLocalStore<GuestStoreData>(GUEST_KEY, { user: null }, (
 
 function formatSupabaseUser(user: User): AuthUser {
   const username =
-    (user.user_metadata?.username as string | undefined) || user.email?.split('@')[0] || 'coder';
+    (user.user_metadata?.username as string | undefined) || `coder_${user.id.substring(0, 4)}`;
 
   return {
     id: user.id,
@@ -153,7 +153,7 @@ export async function signUpWithEmail(
     return { error: 'Supabase is not configured' };
   }
 
-  const cleanUsername = username?.trim() || email.split('@')[0];
+  const cleanUsername = username?.trim() || `coder_${Math.random().toString(36).substring(2, 6)}`;
 
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -195,11 +195,12 @@ export function signInAsGuest(customUsername?: string): AuthUser {
   const username =
     customUsername?.trim() ||
     currentProfile.username ||
-    `guest_coder_${Math.random().toString(36).substring(2, 6)}`;
+    `guest_${Math.random().toString(36).substring(2, 6)}`;
 
+  const guestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `guest_${Date.now()}`;
   const guestUser: AuthUser = {
-    id: `guest_${Date.now()}`,
-    email: `${username}@local.dev`,
+    id: `guest_${guestId}`,
+    email: '',
     username,
     createdAt: new Date().toISOString(),
     isGuest: true,

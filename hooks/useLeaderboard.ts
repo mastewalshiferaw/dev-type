@@ -37,29 +37,57 @@ export function useLeaderboard(query: LeaderboardQuery) {
   useEffect(() => {
     const parsed = JSON.parse(key) as LeaderboardQuery;
     let cancelled = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let pollInterval = POLL_MS;
 
     const load = () => {
       getLeaderboard()
         .then((provider) => provider.list(parsed))
         .then(
-          (page) => !cancelled && setResult({ key, page, updatedAt: Date.now() }),
-          (error: unknown) =>
-            !cancelled &&
-            setResult({
-              key,
-              error: error instanceof Error ? error.message : 'Could not load the leaderboard',
-            })
+          (page) => {
+            if (!cancelled) {
+              pollInterval = POLL_MS; // reset on success
+              setResult({ key, page, updatedAt: Date.now() });
+              scheduleNext();
+            }
+          },
+          () => {
+            if (!cancelled) {
+              // Back off on error (DEV-020) up to 2 minutes
+              pollInterval = Math.min(pollInterval * 2, 120_000);
+              setResult({
+                key,
+                error: 'Could not load the leaderboard. Retrying shortly.',
+              });
+              scheduleNext();
+            }
+          }
         );
     };
 
+    const scheduleNext = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        if (!cancelled && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          load();
+        } else if (!cancelled) {
+          scheduleNext();
+        }
+      }, pollInterval);
+    };
+
     load();
-    const id = setInterval(() => {
+
+    const onVisible = () => {
       if (document.visibilityState === 'visible') load();
-    }, POLL_MS);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     listeners.add(load);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      if (timeoutId) clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', onVisible);
       listeners.delete(load);
     };
   }, [key, attempt]);

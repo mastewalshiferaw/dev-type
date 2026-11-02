@@ -44,8 +44,7 @@ export default function LeaderboardRow({
         <Avatar name={username} />
         <div className="group/name relative min-w-0">
           <span
-            tabIndex={0}
-            className="block cursor-pointer truncate text-sm font-medium text-ink transition-colors group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
+            className="block truncate text-sm font-medium text-ink transition-colors group-hover/name:text-accent"
             title={`${username} · Language: ${displayLanguage}`}
           >
             {username}

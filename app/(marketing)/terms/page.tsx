@@ -7,30 +7,43 @@ export const metadata = pageMetadata({
   path: '/terms',
 });
 
-// PLACEHOLDER: plain-language starter terms, not legal advice. Have them reviewed before launch.
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms" updated="30 October 2026">
-      <p>DEV_TYPE is a free typing test. By using it you agree to these few ground rules.</p>
-      <h2>Play fair</h2>
+    <LegalPage title="Terms of Service" updated="2 November 2026">
+      <p>
+        Welcome to DEV_TYPE. By accessing or using our website and services, you agree to comply with and be bound by these Terms of Service.
+      </p>
+
+      <h2>1. Permitted Use &amp; Fair Play</h2>
       <ul>
-        <li>Type your scores yourself: no scripts, macros or automated input.</li>
-        <li>Pick a username that is not offensive, misleading or someone else&apos;s.</li>
+        <li>You agree to type all runs manually without using automated bots, scripts, or simulated keystroke inputs.</li>
+        <li>Leaderboard submissions must reflect authentic human typing.</li>
+        <li>Usernames must not be abusive, impersonate others, violate trademarks, or contain unlawful content.</li>
       </ul>
-      <p>Scores or usernames that break these rules may be removed from the leaderboard without notice.</p>
-      <h2>No warranty</h2>
       <p>
-        The service is provided as is. It may change, reset the leaderboard, or be unavailable at times, and
-        it comes with no guarantee of any kind.
+        We reserve the right to remove illegitimate scores or restrict accounts that engage in score spoofing, leaderboard spam, or abuse.
       </p>
-      <h2>Code snippets</h2>
+
+      <h2>2. Custom Snippets &amp; Intellectual Property</h2>
       <p>
-        Practice snippets are short examples written for typing practice. Custom text you paste stays in your
-        browser and is never uploaded.
+        The software snippets provided in the app are for educational and typing practice purposes. Any custom code or text you paste into the custom mode remains strictly within your browser&apos;s local storage and is never uploaded to our servers.
       </p>
-      <h2>Contact</h2>
+
+      <h2>3. Disclaimer of Warranties</h2>
       <p>
-        Questions or problems? Open an issue on <a href={`${SITE.repo}/issues`}>GitHub</a>.
+        DEV_TYPE is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis without warranties of any kind, whether express or implied. We do not guarantee uninterrupted availability, error-free operation, or permanent retention of leaderboard entries or practice history.
+      </p>
+
+      <h2>4. Changes to Service &amp; Terms</h2>
+      <p>
+        We may update features or revise these terms from time to time. Continued use of the service following modifications constitutes acceptance of the updated terms.
+      </p>
+
+      <h2>5. Contact Information</h2>
+      <p>
+        If you have questions regarding these terms, please contact us at{' '}
+        <a href="mailto:mastewalgetu@gmail.com">mastewalgetu@gmail.com</a> or via our{' '}
+        <a href={`${SITE.repo}/issues`}>GitHub Repository</a>.
       </p>
     </LegalPage>
   );

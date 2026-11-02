@@ -58,14 +58,14 @@ const KIND_CLASS: Record<SegmentKind, string> = {
   incorrect:
     'rounded-xs bg-danger/15 text-danger underline decoration-danger/70 decoration-2 underline-offset-4',
   untyped: 'text-muted',
-  'newline-typed': 'text-success opacity-50',
-  newline: 'text-muted opacity-50',
+  'newline-typed': 'text-success/80',
+  newline: 'text-muted/80',
 };
 
 const INK_CLASS: Record<SegmentKind, string> = {
   ...KIND_CLASS,
   correct: 'text-ink',
-  'newline-typed': 'text-ink opacity-50',
+  'newline-typed': 'text-ink/80',
 };
 
 /** Index of the segment containing `index` (segments are sorted by start). */
@@ -168,7 +168,7 @@ function CodeView({ text, input, cursorStyle, font, fontSize, ligatures, rows, t
           ref={caretRef}
           hidden
           className={`pointer-events-none absolute top-0 left-0 rounded-xs data-ready:transition-transform data-ready:duration-(--duration-fast) data-ready:ease-out ${
-            cursorStyle === 'block' ? 'bg-caret/35' : 'bg-caret'
+            cursorStyle === 'block' ? 'bg-caret/50 ring-1 ring-caret/70' : 'bg-caret'
           }`}
         />
         {segments.map((segment, i) => (

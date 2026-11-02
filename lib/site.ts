@@ -1,11 +1,19 @@
 import type { Metadata } from 'next';
 
+const resolvedUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL}`
+    : null) ||
+  (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : null) ||
+  (process.env.NODE_ENV === 'production' ? 'https://dev-type-vert.vercel.app' : 'http://localhost:3000');
+
 export const SITE = {
   name: 'DEV_TYPE',
   title: 'DEV_TYPE: typing speed test for developers',
   description:
     'A typing test for people who type code, not prose. Practice real snippets in 15 languages, track WPM, accuracy and consistency, and climb the daily leaderboard.',
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+  url: resolvedUrl,
   repo: 'https://github.com/mastewalshiferaw/dev-type',
   author: { name: 'mustCode', url: 'https://t.me/must_Code' },
 };

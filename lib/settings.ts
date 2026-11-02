@@ -68,7 +68,7 @@ export const DEFAULT_SETTINGS: Settings = {
   punctuation: true,
   indentation: true,
   autoIndent: true,
-  skipComments: false,
+  skipComments: true,
   cursorStyle: 'line',
   font: 'geist',
   fontSize: 18,

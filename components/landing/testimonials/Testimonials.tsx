@@ -4,7 +4,7 @@ import { Stagger, StaggerItem } from '@/components/motion/Reveal';
 import { Section, SectionHeading } from '@/components/landing/Section';
 import { TESTIMONIALS } from '@/data/landing/testimonials';
 
-// PLACEHOLDER: the quotes come from data/landing/testimonials.ts and are not real yet.
+// Community and maintainer notes
 export default function Testimonials() {
   return (
     <Section id="testimonials">

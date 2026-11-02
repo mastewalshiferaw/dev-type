@@ -48,10 +48,15 @@ export function useHiddenInput({ inputRef, state, dispatch, onRestart, onFinish 
     const now = Date.now();
 
     if (event.key === 'Tab') {
+      if (event.ctrlKey || event.metaKey || event.altKey) return; // Leave browser shortcuts intact (DEV-009)
       if (event.shiftKey) return; // Shift+Tab leaves the typing area
       event.preventDefault();
       if (canIndent(state)) dispatch({ type: 'indent', now });
       else onRestart();
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.currentTarget.blur(); // Escape leaves the typing arena (DEV-009)
       return;
     }
     if (event.key === 'Enter') {

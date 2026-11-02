@@ -7,7 +7,9 @@ export const html: SnippetSet = {
 </button>`,
     `.card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }`,
+    `<input type="text" placeholder="Search..." autocomplete="off" />`,
   ],
   medium: [
     `<nav aria-label="Main">
@@ -17,16 +19,18 @@ export const html: SnippetSet = {
     <li><a href="/blog">Blog</a></li>
   </ul>
 </nav>`,
-    `/* Center anything inside a grid cell */
-.center {
+    `.center {
   display: grid;
   place-items: center;
   min-height: 100dvh;
 }`,
+    `dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}`,
   ],
   long: [
     `<form class="signup" action="/api/signup" method="post">
-  <!-- Native validation before any JavaScript -->
   <label for="email">Email</label>
   <input id="email" name="email" type="email" required />
 
@@ -51,5 +55,14 @@ export const html: SnippetSet = {
     animation: none !important;
   }
 }`,
+    `<header class="site-header">
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div class="container">
+    <div class="brand">
+      <img src="/logo.svg" alt="DevType" width="32" height="32" />
+      <span>DevType</span>
+    </div>
+  </div>
+</header>`,
   ],
 };

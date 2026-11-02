@@ -11,6 +11,7 @@ import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { TIMEFRAMES, type Timeframe } from '@/lib/leaderboard';
 import { LANGUAGE_FILTER_OPTIONS, leaderboardLanguageLabel, type LanguageFilter } from '@/lib/languages';
 import { useProfile } from '@/lib/profile';
+import { useAuth } from '@/lib/auth';
 
 const LIMIT = 10;
 
@@ -24,11 +25,13 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
   const [language, setLanguage] = useState<LanguageFilter>('all');
   const { username } = useProfile();
+  const { user } = useAuth();
   const { page, error, loading, retry } = useLeaderboard({
     timeframe,
     language,
     limit: LIMIT,
     username: username || undefined,
+    userId: user?.id,
   });
   const { title, subtitle } = TITLES[timeframe];
   const you = page?.you ?? null;
@@ -73,7 +76,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
         />
       </div>
 
-      <div aria-live="polite" aria-busy={loading} className="min-h-[22rem]">
+      <div aria-busy={loading} className="min-h-[22rem]">
         {loading ? (
           <ul aria-label="Loading leaderboard" className="flex flex-col gap-1">
             {Array.from({ length: 6 }, (_, i) => (
@@ -139,8 +142,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
             {username ? (
               <div className="group/name relative min-w-0">
                 <span
-                  tabIndex={0}
-                  className="block cursor-pointer truncate text-xs font-semibold text-ink transition-colors group-hover/name:text-accent group-focus-visible/name:text-accent focus:outline-none"
+                  className="block truncate text-xs font-semibold text-ink transition-colors group-hover/name:text-accent"
                   title={
                     you?.language
                       ? `${username} · Language: ${leaderboardLanguageLabel(you.language)}`

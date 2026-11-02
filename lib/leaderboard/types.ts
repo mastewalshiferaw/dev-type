@@ -11,6 +11,7 @@ export const TIMEFRAMES: readonly { value: Timeframe; label: string }[] = [
 
 export interface LeaderboardEntry {
   id: string;
+  userId?: string;
   username: string;
   wpm: number;
   accuracy: number;
@@ -29,6 +30,7 @@ export interface LeaderboardQuery {
   limit: number;
   /** When set, the page also reports this user's best ranked entry */
   username?: string;
+  userId?: string;
 }
 
 export interface LeaderboardPage {

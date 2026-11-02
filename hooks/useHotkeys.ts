@@ -21,6 +21,16 @@ export function useHotkeys(hotkeys: Hotkey[]) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
+
+      // Don't swallow hotkeys when user is typing in form fields (DEV-017)
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) {
+        if (!target.hasAttribute('data-typing-arena')) return;
+      }
+
       const match = ref.current.find(
         (hotkey) =>
           hotkey.code === event.code &&

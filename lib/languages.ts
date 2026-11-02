@@ -69,7 +69,7 @@ export function languageLabel(language: LanguageFilter | 'mixed' | 'custom'): st
   if (language === 'all') return 'All languages';
   if (language === 'mixed') return 'Mixed';
   if (language === 'custom') return 'Custom text';
-  return LANGUAGES[language].label;
+  return LANGUAGES[language as LanguageId]?.label ?? language;
 }
 
 export function leaderboardLanguageLabel(language?: string): string {

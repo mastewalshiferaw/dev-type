@@ -6,6 +6,8 @@ export const kotlin: SnippetSet = {
 println(doubled)`,
     `fun String.isPalindrome(): Boolean =
     this == this.reversed()`,
+    `val nonNulls = listOf("a", null, "b").filterNotNull()
+println(nonNulls.joinToString(", "))`,
   ],
   medium: [
     `data class User(val name: String, val age: Int)
@@ -14,10 +16,14 @@ fun adults(users: List<User>): List<String> =
     users.filter { it.age >= 18 }
         .sortedBy { it.name }
         .map { it.name }`,
-    `// Returns a fallback when the lookup fails
-fun findPort(config: Map<String, String>): Int {
+    `fun findPort(config: Map<String, String>): Int {
     val raw = config["port"] ?: return 8080
     return raw.toIntOrNull() ?: 8080
+}`,
+    `inline fun <T> measureMillis(block: () -> T): Pair<T, Long> {
+    val start = System.currentTimeMillis()
+    val res = block()
+    return res to (System.currentTimeMillis() - start)
 }`,
   ],
   long: [
@@ -40,13 +46,24 @@ fun main() {
 
     suspend fun get(id: Long): User {
         cache[id]?.let { return it }
-        /* Fetch once, then serve from memory */
         val user = api.fetchUser(id)
         cache[id] = user
         return user
     }
 
     fun clear() = cache.clear()
+}`,
+    `class StateMachine<TState, TEvent>(private var state: TState) {
+    private val listeners = mutableListOf<(TState) -> Unit>()
+
+    fun transition(transform: (TState) -> TState) {
+        state = transform(state)
+        listeners.forEach { it(state) }
+    }
+
+    fun subscribe(listener: (TState) -> Unit) {
+        listeners.add(listener)
+    }
 }`,
   ],
 };

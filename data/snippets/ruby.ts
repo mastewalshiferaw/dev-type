@@ -7,6 +7,8 @@ puts evens.sum`,
     `def greet(name = "world")
   "Hello, #{name}!"
 end`,
+    `words = %w[ruby rails crystal python]
+puts words.map(&:capitalize).join(', ')`,
   ],
   medium: [
     `class User
@@ -17,11 +19,17 @@ end`,
     @email = email.downcase
   end
 end`,
-    `# Group words by their first letter
-words = %w[apple avocado banana blueberry cherry]
+    `words = %w[apple avocado banana blueberry cherry]
 index = words.group_by { |w| w[0] }
 index.each do |letter, list|
   puts "#{letter}: #{list.join(', ')}"
+end`,
+    `def deep_symbolize_keys(hash)
+  hash.each_with_object({}) do |(key, value), result|
+    new_key = key.is_a?(String) ? key.to_sym : key
+    new_value = value.is_a?(Hash) ? deep_symbolize_keys(value) : value
+    result[new_key] = new_value
+  end
 end`,
   ],
   long: [
@@ -33,7 +41,7 @@ end`,
       yield
     rescue StandardError => e
       raise e if tries >= attempts
-      sleep(wait * tries) # back off a little more each time
+      sleep(wait * tries)
       retry
     end
   end
@@ -58,6 +66,20 @@ Retry.with_retries { fetch_report! }`,
 
   def each(&block)
     @items.each(&block)
+  end
+end`,
+    `class RequestLogger
+  def initialize(app, logger = Logger.new($stdout))
+    @app = app
+    @logger = logger
+  end
+
+  def call(env)
+    start_time = Time.now
+    status, headers, body = @app.call(env)
+    duration = (Time.now - start_time) * 1000
+    @logger.info "#{env['REQUEST_METHOD']} #{env['PATH_INFO']} - #{status} (#{duration.round(2)}ms)"
+    [status, headers, body]
   end
 end`,
   ],

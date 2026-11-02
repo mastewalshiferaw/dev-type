@@ -125,8 +125,8 @@ async function trySyncRemote(log: UserPracticeLog) {
     } = await supabase.auth.getSession();
     if (!session?.user) return;
 
-    // Try inserting into user_logs if table exists
-    await supabase.from('user_logs').insert({
+    // Try inserting into user_logs table (DEV-008)
+    const { error } = await supabase.from('user_logs').insert({
       id: log.id,
       user_id: session.user.id,
       wpm: log.wpm,
@@ -136,8 +136,13 @@ async function trySyncRemote(log: UserPracticeLog) {
       duration_ms: log.durationMs,
       created_at: new Date(log.createdAt).toISOString(),
     });
-  } catch {
-    // Ignore schema missing error; local store is the primary truth
+    if (error && process.env.NODE_ENV !== 'production') {
+      console.warn('user_logs sync notice:', error.message);
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('user_logs sync failed:', err);
+    }
   }
 }
 

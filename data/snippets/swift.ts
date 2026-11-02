@@ -3,10 +3,13 @@ import type { SnippetSet } from './types';
 export const swift: SnippetSet = {
   short: [
     `let scores = [72, 98, 85]
-let best = scores.max() ?? 0`,
+let best = scores.max() ?? 0
+print("Top score: \\(best)")`,
     `func square(_ x: Int) -> Int {
     x * x
 }`,
+    `let names = ["ada", "grace", "margaret"]
+let formatted = names.map { $0.capitalized }.joined(separator: ", ")`,
   ],
   medium: [
     `struct Temperature {
@@ -16,11 +19,19 @@ let best = scores.max() ?? 0`,
         celsius * 9 / 5 + 32
     }
 }`,
-    `// Load a user, or nil if the request fails
-func loadUser(id: Int) async -> User? {
+    `func loadUser(id: Int) async -> User? {
     let url = URL(string: "https://api.example.com/users/\\(id)")!
     guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
     return try? JSONDecoder().decode(User.self, from: data)
+}`,
+    `func compactMapValues<K, V, R>(_ dict: [K: V], transform: (V) -> R?) -> [K: R] {
+    var result = [K: R]()
+    for (key, val) in dict {
+        if let transformed = transform(val) {
+            result[key] = transformed
+        }
+    }
+    return result
 }`,
   ],
   long: [
@@ -56,6 +67,19 @@ struct CounterView: View {
 
     var body: some View {
         Button("Count: \\(counter.value)") { counter.increment() }
+    }
+}`,
+    `struct Debouncer {
+    private var task: Task<Void, Never>?
+
+    mutating func debounce(delay: Duration, action: @escaping @Sendable () async -> Void) {
+        task?.cancel()
+        task = Task {
+            try? await Task.sleep(for: delay)
+            if !Task.isCancelled {
+                await action()
+            }
+        }
     }
 }`,
   ],

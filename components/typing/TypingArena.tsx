@@ -204,7 +204,8 @@ export default function TypingArena({
         {!isEmptyCustom && (
           <textarea
             {...inputProps}
-            aria-label="Type the code shown. Tab restarts, Shift+Tab leaves the typing area."
+            data-typing-arena="true"
+            aria-label="Code typing test arena. Type the code shown. Esc or Shift+Tab leaves the typing area."
             aria-describedby={run ? 'typing-target' : undefined}
             readOnly={state.status === 'finished'}
             onFocus={() => {
