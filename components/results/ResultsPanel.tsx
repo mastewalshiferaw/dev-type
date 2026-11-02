@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { motion } from 'motion/react';
 import dynamic from 'next/dynamic';
 import { ArrowRight, Check, Crown, Flame, Loader2, RotateCcw, Upload } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Skeleton from '@/components/ui/Skeleton';
 import { submitScore } from '@/hooks/useLeaderboard';
 import type { Sample } from '@/lib/engine';
@@ -76,29 +76,43 @@ function SubmitScore({ record }: { record: RunRecord }) {
   const { username } = useProfile();
   const [draft, setDraft] = useState('');
   const [state, setState] = useState<SubmitState>({ status: 'idle' });
+  const autoSubmittedRef = useRef(false);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    const name = username || draft.trim();
-    if (!USERNAME_PATTERN.test(name)) {
-      setState({ status: 'error', message: USERNAME_HINT });
-      return;
+  const submit = useCallback(
+    async (event?: FormEvent) => {
+      event?.preventDefault();
+      const name = username || draft.trim();
+      if (!USERNAME_PATTERN.test(name)) {
+        setState({ status: 'error', message: USERNAME_HINT });
+        return;
+      }
+      if (!username) setUsername(name);
+      setState({ status: 'sending' });
+      try {
+        await submitScore({
+          username: name,
+          wpm: record.wpm,
+          accuracy: record.accuracy,
+          language: record.language === 'custom' ? 'mixed' : record.language,
+          modeKey: record.modeKey,
+        });
+        setState({ status: 'done' });
+      } catch (error) {
+        setState({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Submit failed',
+        });
+      }
+    },
+    [username, draft, record]
+  );
+
+  useEffect(() => {
+    if (username && state.status === 'idle' && !autoSubmittedRef.current) {
+      autoSubmittedRef.current = true;
+      submit();
     }
-    if (!username) setUsername(name);
-    setState({ status: 'sending' });
-    try {
-      await submitScore({
-        username: name,
-        wpm: record.wpm,
-        accuracy: record.accuracy,
-        language: record.language === 'custom' ? 'mixed' : record.language,
-        modeKey: record.modeKey,
-      });
-      setState({ status: 'done' });
-    } catch (error) {
-      setState({ status: 'error', message: error instanceof Error ? error.message : 'Submit failed' });
-    }
-  };
+  }, [username, state.status, submit]);
 
   if (state.status === 'done') {
     return (
@@ -137,7 +151,13 @@ function SubmitScore({ record }: { record: RunRecord }) {
         ) : (
           <Upload size={14} aria-hidden />
         )}
-        {username ? `Submit as ${username}` : 'Submit score'}
+        {state.status === 'sending'
+          ? username
+            ? `Submitting as ${username}...`
+            : 'Submitting score...'
+          : username
+            ? `Submit as ${username}`
+            : 'Submit score'}
       </button>
       {state.status === 'error' && (
         <p role="alert" className="w-full text-xs text-danger">
@@ -246,7 +266,7 @@ export default function ResultsPanel({ result, onNext, onRetry }: Props) {
         {!saved ? (
           <p className="text-xs text-muted">This run was too short to save. Type for a few seconds longer.</p>
         ) : ranked ? (
-          <SubmitScore record={record} />
+          <SubmitScore key={record.id} record={record} />
         ) : (
           <p className="text-xs text-muted">Zen and custom runs stay on your device and are not ranked.</p>
         )}
