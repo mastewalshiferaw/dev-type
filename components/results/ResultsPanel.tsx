@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { ArrowRight, Check, Crown, Flame, Loader2, RotateCcw, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Skeleton from '@/components/ui/Skeleton';
+import ShareCardButton from '@/components/results/ShareCardButton';
 import { submitScore } from '@/hooks/useLeaderboard';
 import type { Sample } from '@/lib/engine';
 import type { RunRecord } from '@/lib/history';
@@ -171,6 +172,7 @@ function SubmitScore({ record }: { record: RunRecord }) {
 export default function ResultsPanel({ result, onNext, onRetry }: Props) {
   const { record, samples, isPersonalBest, previousBest, saved, ranked } = result;
   const panelRef = useRef<HTMLElement>(null);
+  const { username } = useProfile();
   const logs = usePracticeLogs();
   const streak = calculateStreak(logs);
 
@@ -292,6 +294,18 @@ export default function ResultsPanel({ result, onNext, onRetry }: Props) {
             <RotateCcw size={14} aria-hidden />
             Try again
           </button>
+          {saved && ranked && isPersonalBest && (
+            <ShareCardButton
+              card={{
+                wpm: record.wpm,
+                accuracy: record.accuracy,
+                language: record.language,
+                mode: record.modeKey,
+                username: username || undefined,
+                gain: previousBest ? record.wpm - previousBest.wpm : undefined,
+              }}
+            />
+          )}
         </div>
       </motion.div>
     </motion.section>
