@@ -12,7 +12,7 @@ import type { LeaderboardEntry, LeaderboardProvider, ScoreLanguage } from './typ
 /** Rows fetched per query before de-duplicating to one score per player */
 const FETCH_LIMIT = 100;
 
-let hasUserIdColumn = true;
+let hasUserIdColumn = process.env.NEXT_PUBLIC_SUPABASE_SCORES_HAS_USER_ID === 'true';
 
 interface ScoreRow {
   id: string | number;
@@ -67,7 +67,13 @@ export const supabaseProvider: LeaderboardProvider = {
       };
 
       let res = await runQuery(hasUserIdColumn);
-      if (res.error && hasUserIdColumn && (res.error.code === '42703' || res.error.message.includes('user_id'))) {
+      if (
+        res.error &&
+        hasUserIdColumn &&
+        (res.error.code === '42703' ||
+          res.error.message.includes('user_id') ||
+          res.error.message.includes('schema cache'))
+      ) {
         hasUserIdColumn = false;
         res = await runQuery(false);
       }
@@ -120,7 +126,13 @@ export const supabaseProvider: LeaderboardProvider = {
           .select('id, player_name, wpm, accuracy, language, mode, created_at')
           .single();
 
-    if (res.error && hasUserIdColumn && (res.error.code === '42703' || res.error.message.includes('user_id'))) {
+    if (
+      res.error &&
+      hasUserIdColumn &&
+      (res.error.code === '42703' ||
+        res.error.message.includes('user_id') ||
+        res.error.message.includes('schema cache'))
+    ) {
       hasUserIdColumn = false;
       res = await client
         .from('scores')

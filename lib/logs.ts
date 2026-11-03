@@ -115,7 +115,10 @@ export function addPracticeLog(entry: {
   return newLog;
 }
 
+let hasUserLogsTable = true;
+
 async function trySyncRemote(log: UserPracticeLog) {
+  if (!hasUserLogsTable) return;
   const supabase = getSupabase();
   if (!supabase) return;
 
@@ -136,8 +139,17 @@ async function trySyncRemote(log: UserPracticeLog) {
       duration_ms: log.durationMs,
       created_at: new Date(log.createdAt).toISOString(),
     });
-    if (error && process.env.NODE_ENV !== 'production') {
-      console.warn('user_logs sync notice:', error.message);
+    if (error) {
+      if (
+        error.code === 'PGRST205' ||
+        error.message?.includes('user_logs') ||
+        error.message?.includes('schema cache')
+      ) {
+        hasUserLogsTable = false;
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('user_logs sync notice:', error.message);
+      }
     }
   } catch (err) {
     if (process.env.NODE_ENV !== 'production') {
