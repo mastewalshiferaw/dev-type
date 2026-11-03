@@ -23,15 +23,18 @@ export function pageMetadata({
   title,
   description = SITE.description,
   path,
+  image: customImage,
 }: {
   /** Omit for the home page, which uses the full site title */
   title?: string;
   description?: string;
   path: string;
+  /** Preview image path (1200×630); defaults to app/opengraph-image.tsx */
+  image?: { url: string; alt: string };
 }): Metadata {
   const fullTitle = title ? `${title} · ${SITE.name}` : SITE.title;
   // A page's openGraph replaces its parent's, which would drop the image from app/opengraph-image.tsx
-  const image = { url: '/opengraph-image', width: 1200, height: 630, alt: SITE.title };
+  const image = { url: '/opengraph-image', alt: SITE.title, ...customImage, width: 1200, height: 630 };
   return {
     title: title ?? { absolute: SITE.title },
     description,
