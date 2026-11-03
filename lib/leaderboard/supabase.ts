@@ -12,6 +12,8 @@ import type { LeaderboardEntry, LeaderboardProvider, ScoreLanguage } from './typ
 /** Rows fetched per query before de-duplicating to one score per player */
 const FETCH_LIMIT = 100;
 
+let hasUserIdColumn = process.env.NEXT_PUBLIC_SUPABASE_SCORES_HAS_USER_ID === 'true';
+
 interface ScoreRow {
   id: string | number;
   user_id?: string | null;
@@ -44,20 +46,43 @@ export const supabaseProvider: LeaderboardProvider = {
   async list(query) {
     const now = Date.now();
     try {
-      let request = getClient()
-        .from('scores')
-        .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
-        .gte('created_at', new Date(timeframeStart(query.timeframe, now)).toISOString())
-        .order('wpm', { ascending: false })
-        .limit(FETCH_LIMIT);
-      if (query.language !== 'all') request = request.eq('language', query.language.toLowerCase());
+      const runQuery = (withUserId: boolean) => {
+        let req = withUserId
+          ? getClient()
+              .from('scores')
+              .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
+          : getClient()
+              .from('scores')
+              .select('id, player_name, wpm, accuracy, language, mode, created_at');
 
-      const { data, error } = await request;
-      if (error) {
-        console.error('Leaderboard query error:', error.message);
+        let filtered = req
+          .gte('created_at', new Date(timeframeStart(query.timeframe, now)).toISOString())
+          .order('wpm', { ascending: false })
+          .limit(FETCH_LIMIT);
+
+        if (query.language !== 'all') {
+          filtered = filtered.eq('language', query.language.toLowerCase());
+        }
+        return filtered;
+      };
+
+      let res = await runQuery(hasUserIdColumn);
+      if (
+        res.error &&
+        hasUserIdColumn &&
+        (res.error.code === '42703' ||
+          res.error.message.includes('user_id') ||
+          res.error.message.includes('schema cache'))
+      ) {
+        hasUserIdColumn = false;
+        res = await runQuery(false);
+      }
+
+      if (res.error) {
+        console.error('Leaderboard query error:', res.error.message);
         throw new Error('Unable to load leaderboard scores');
       }
-      return rankEntries((data as ScoreRow[]).map(toEntry), query, now);
+      return rankEntries(((res.data ?? []) as unknown as ScoreRow[]).map(toEntry), query, now);
     } catch (err) {
       if (err instanceof Error && err.message !== 'Unable to load leaderboard scores') {
         console.error('Leaderboard fetch error:', err);
@@ -79,23 +104,47 @@ export const supabaseProvider: LeaderboardProvider = {
     const cleanLang = (score.language || 'mixed').toLowerCase();
     const cleanMode = (score.modeKey || 'time-30').slice(0, 30);
 
-    const { data, error } = await client
-      .from('scores')
-      .insert({
-        user_id: userId,
-        player_name: cleanName,
-        wpm: cleanWpm,
-        accuracy: cleanAccuracy,
-        language: cleanLang,
-        mode: cleanMode,
-      })
-      .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
-      .single();
+    const basePayload = {
+      player_name: cleanName,
+      wpm: cleanWpm,
+      accuracy: cleanAccuracy,
+      language: cleanLang,
+      mode: cleanMode,
+    };
 
-    if (error) {
-      console.error('Score submission error:', error.message);
+    const payload = hasUserIdColumn && userId ? { ...basePayload, user_id: userId } : basePayload;
+
+    let res = hasUserIdColumn
+      ? await client
+          .from('scores')
+          .insert(payload)
+          .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
+          .single()
+      : await client
+          .from('scores')
+          .insert(basePayload)
+          .select('id, player_name, wpm, accuracy, language, mode, created_at')
+          .single();
+
+    if (
+      res.error &&
+      hasUserIdColumn &&
+      (res.error.code === '42703' ||
+        res.error.message.includes('user_id') ||
+        res.error.message.includes('schema cache'))
+    ) {
+      hasUserIdColumn = false;
+      res = await client
+        .from('scores')
+        .insert(basePayload)
+        .select('id, player_name, wpm, accuracy, language, mode, created_at')
+        .single();
+    }
+
+    if (res.error) {
+      console.error('Score submission error:', res.error.message);
       throw new Error('Could not submit score to leaderboard');
     }
-    return toEntry(data as ScoreRow);
+    return toEntry(res.data as unknown as ScoreRow);
   },
 };
