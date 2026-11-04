@@ -4,6 +4,7 @@ import { Terminal } from 'lucide-react';
 import { animate } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { LANGUAGE_COUNT } from '@/data/landing/languages';
+import { useMounted } from '@/hooks/useMounted';
 import { DURATION, EASE, EASE_REVEAL, SPLASH_END_EVENT } from '@/lib/motion';
 
 const WORD = 'DEV_TYPE';
@@ -32,7 +33,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(re
  * hero plays its entrance behind it. Any key or click skips. Reduced motion: a 400ms fade.
  */
 export default function Splash() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const [done, setDone] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
@@ -45,7 +46,6 @@ export default function Splash() {
   const hintRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    setMounted(true);
     const html = document.documentElement;
     const mode = html.getAttribute('data-splash');
     if (!mode) return;

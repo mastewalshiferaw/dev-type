@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Flame, History, LogIn, LogOut, Trophy, UserCheck } from 'lucide-react';
+import { ArrowLeft, Flame, History, LogIn, LogOut, ShieldCheck, Trophy, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useMounted } from '@/hooks/useMounted';
@@ -11,6 +11,7 @@ import LanguageFocusChart from '@/components/account/LanguageFocusChart';
 import TestimonialCard from '@/components/account/TestimonialCard';
 import Avatar from '@/components/leaderboard/Avatar';
 import { useAuth, signOut } from '@/lib/auth';
+import { isUserAdmin } from '@/lib/auth/admin';
 import { leaderboardLanguageLabel } from '@/lib/languages';
 import { usePracticeLogs } from '@/lib/logs';
 import { modeKeyLabel } from '@/lib/settings';
@@ -77,14 +78,25 @@ export default function AccountView() {
             Sign In / Sync
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={() => signOut()}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-xs font-medium text-muted transition-ui hover:bg-raised hover:text-ink"
-          >
-            <LogOut size={14} />
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            {isUserAdmin(user) && (
+              <Link
+                href="/admin/testimonials"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-accent/40 bg-accent-fill/15 px-3 text-xs font-bold text-accent transition-ui hover:bg-accent-fill hover:text-accent-ink"
+              >
+                <ShieldCheck size={14} />
+                Moderate Testimonials
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-xs font-medium text-muted transition-ui hover:bg-raised hover:text-ink"
+            >
+              <LogOut size={14} />
+              Sign Out
+            </button>
+          </div>
         )}
       </div>
 
@@ -97,10 +109,18 @@ export default function AccountView() {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-ink">{user?.username || 'Guest Coder'}</h1>
                 {user && !user.isGuest ? (
-                  <span className="text-3xs inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 font-bold text-success">
-                    <UserCheck size={11} />
-                    Verified
-                  </span>
+                  <>
+                    <span className="text-3xs inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 font-bold text-success">
+                      <UserCheck size={11} />
+                      Verified
+                    </span>
+                    {isUserAdmin(user) && (
+                      <span className="text-3xs inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent-fill/10 px-2 py-0.5 font-bold text-accent">
+                        <ShieldCheck size={11} />
+                        Admin
+                      </span>
+                    )}
+                  </>
                 ) : (
                   <span className="text-3xs rounded-full bg-raised px-2 py-0.5 font-medium text-muted">
                     Local Guest

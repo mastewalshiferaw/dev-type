@@ -47,7 +47,7 @@ export const supabaseProvider: LeaderboardProvider = {
     const now = Date.now();
     try {
       const runQuery = (withUserId: boolean) => {
-        let req = withUserId
+        const req = withUserId
           ? getClient()
               .from('scores')
               .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')

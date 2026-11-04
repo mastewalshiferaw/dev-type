@@ -208,3 +208,116 @@ export async function deleteUserTestimonial(userId: string): Promise<{ error?: s
     return { error: err instanceof Error ? err.message : 'Failed to delete testimonial' };
   }
 }
+
+export interface AdminTestimonialsResponse {
+  testimonials: Testimonial[];
+  counts: {
+    all: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  error?: string;
+}
+
+export async function fetchAdminTestimonials(status: string = 'all'): Promise<AdminTestimonialsResponse> {
+  const supabase = getSupabase();
+  if (!supabase) return { testimonials: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 }, error: 'Supabase is not configured' };
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { testimonials: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 }, error: 'Not authenticated' };
+    }
+
+    const res = await fetch(`/api/admin/testimonials?status=${encodeURIComponent(status)}`, {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { testimonials: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 }, error: data.error || 'Failed to fetch' };
+    }
+
+    return data;
+  } catch (err) {
+    return {
+      testimonials: [],
+      counts: { all: 0, pending: 0, approved: 0, rejected: 0 },
+      error: err instanceof Error ? err.message : 'Network error',
+    };
+  }
+}
+
+export async function updateAdminTestimonialStatus(
+  id: string,
+  status: TestimonialStatus
+): Promise<{ success?: boolean; testimonial?: Testimonial; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { error: 'Supabase is not configured' };
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { error: 'Not authenticated' };
+    }
+
+    const res = await fetch('/api/admin/testimonials', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ id, status }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { error: data.error || 'Failed to update testimonial status' };
+    }
+
+    return { success: true, testimonial: data.testimonial };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to update testimonial' };
+  }
+}
+
+export async function deleteAdminTestimonial(id: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { error: 'Supabase is not configured' };
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { error: 'Not authenticated' };
+    }
+
+    const res = await fetch(`/api/admin/testimonials?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { error: data.error || 'Failed to delete testimonial' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to delete testimonial' };
+  }
+}
+

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BadgeCheck, CheckCircle2, Clock, MessageSquareQuote, Send, Trash2, Edit3, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { BadgeCheck, CheckCircle2, Clock, MessageSquareQuote, Send, ShieldCheck, Trash2, Edit3, AlertCircle } from 'lucide-react';
 import Avatar from '@/components/leaderboard/Avatar';
 import type { AuthUser } from '@/lib/auth/types';
+import { isUserAdmin } from '@/lib/auth/admin';
 import {
   getUserTestimonial,
   submitUserTestimonial,
@@ -36,10 +38,7 @@ export default function TestimonialCard({
   const isVerified = Boolean(user && !user.isGuest);
 
   useEffect(() => {
-    if (!user || user.isGuest) {
-      setLoading(false);
-      return;
-    }
+    if (!user || user.isGuest) return;
 
     let active = true;
     getUserTestimonial(user.id).then((item) => {
@@ -138,27 +137,38 @@ export default function TestimonialCard({
             Verified
           </span>
         </div>
-        {testimonial && !isEditing && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-1 text-xs text-muted transition-ui hover:text-ink"
+        <div className="flex items-center gap-3">
+          {isUserAdmin(user) && (
+            <Link
+              href="/admin/testimonials"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-accent transition-ui hover:underline"
             >
-              <Edit3 size={13} />
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={submitting}
-              className="inline-flex items-center gap-1 text-xs text-danger/80 transition-ui hover:text-danger"
-            >
-              <Trash2 size={13} />
-              Delete
-            </button>
-          </div>
-        )}
+              <ShieldCheck size={13} />
+              <span className="hidden sm:inline">Admin:</span> Moderate Submissions
+            </Link>
+          )}
+          {testimonial && !isEditing && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="inline-flex items-center gap-1 text-xs text-muted transition-ui hover:text-ink"
+              >
+                <Edit3 size={13} />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={submitting}
+                className="inline-flex items-center gap-1 text-xs text-danger/80 transition-ui hover:text-danger"
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
