@@ -112,7 +112,7 @@ export function useTypingRun(settings: Settings, onFinish: (state: EngineState, 
       const time = Date.now();
       const { mode, duration } = settingsRef.current;
       const limit = startedAt + duration * 1000;
-      if (mode === 'time' && time >= limit) dispatch({ type: 'finish', now: limit });
+      if ((mode === 'time' || mode === 'custom') && time >= limit) dispatch({ type: 'finish', now: limit });
       else dispatch({ type: 'tick', now: time });
       setNow(time);
     };

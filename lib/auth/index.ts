@@ -135,7 +135,7 @@ export async function signInWithEmail(
 
     const authUser = formatSupabaseUser(data.user);
     guestStore.set({ user: null });
-    updateAuthState({ user: authUser });
+    updateAuthState({ user: authUser, isLoading: false });
     setUsername(authUser.username);
     return { user: authUser };
   } catch (err) {
@@ -179,7 +179,7 @@ export async function signUpWithEmail(
         };
       }
       guestStore.set({ user: null });
-      updateAuthState({ user: authUser });
+      updateAuthState({ user: authUser, isLoading: false });
       setUsername(authUser.username);
       return { user: authUser };
     }

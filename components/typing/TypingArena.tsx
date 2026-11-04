@@ -44,7 +44,7 @@ export default function TypingArena({
 }: Props) {
   const [focused, setFocused] = useState(false);
 
-  const isTime = settings.mode === 'time';
+  const isTime = settings.mode === 'time' || settings.mode === 'custom';
   const canFinishManually = settings.mode === 'zen' || settings.mode === 'custom';
   const running = state.status === 'running';
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
@@ -81,7 +81,7 @@ export default function TypingArena({
   const focusInput = () => inputRef.current?.focus();
 
   const handleSelectDuration = (duration: Duration) => {
-    updateSettings({ duration, mode: 'time' });
+    updateSettings({ duration, mode: settings.mode === 'custom' ? 'custom' : 'time' });
     onRestart();
     focusInput();
   };

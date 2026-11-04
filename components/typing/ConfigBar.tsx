@@ -90,14 +90,23 @@ export default function ConfigBar({ settings, onOpenSettings }: Props) {
                 </span>
               )}
               {mode === 'custom' && (
-                <button
-                  type="button"
-                  onClick={() => onOpenSettings('custom')}
-                  className="flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted transition-ui hover:bg-raised hover:text-ink"
-                >
-                  <Pencil size={13} aria-hidden className="text-accent" />
-                  Edit text
-                </button>
+                <div className="flex items-center gap-2">
+                  <SegmentedControl
+                    label="Duration"
+                    options={DURATION_OPTIONS}
+                    value={settings.duration}
+                    onChange={(duration) => updateSettings({ duration })}
+                  />
+                  <Divider />
+                  <button
+                    type="button"
+                    onClick={() => onOpenSettings('custom')}
+                    className="flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted transition-ui hover:bg-raised hover:text-ink"
+                  >
+                    <Pencil size={13} aria-hidden className="text-accent" />
+                    Edit text
+                  </button>
+                </div>
               )}
             </motion.div>
           </AnimatePresence>

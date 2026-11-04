@@ -1,7 +1,7 @@
 'use client';
 
 import * as Dialog from '@radix-ui/react-dialog';
-import { Check, Flame, Loader2, Lock, Mail, User, X } from 'lucide-react';
+import { Check, Flame, Loader2, Lock, Mail, MailCheck, User, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { signInAsGuest, signInWithEmail, signUpWithEmail } from '@/lib/auth';
 import { USERNAME_HINT, USERNAME_PATTERN } from '@/lib/profile';
@@ -20,6 +20,18 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setError(null);
+      setSuccessMessage(null);
+      setConfirmationEmail(null);
+    } else {
+      setMode(defaultMode);
+    }
+    onOpenChange(nextOpen);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,7 +70,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
         if (res.error) {
           setError(res.error);
         } else if (res.needsConfirmation) {
-          setSuccessMessage('Account created! Please check your email to confirm your registration.');
+          setConfirmationEmail(email.trim());
         } else {
           onOpenChange(false);
         }
@@ -76,7 +88,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="data-[state=open]:animate-fade fixed inset-0 z-50 bg-backdrop/60 backdrop-blur-xs" />
         <Dialog.Content className="rounded-2xl fixed top-1/2 left-1/2 z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 border border-line bg-surface p-6 shadow-modal focus:outline-none data-[state=open]:animate-pop">
@@ -105,138 +117,171 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
             </Dialog.Close>
           </div>
 
-          {/* Mode Switch Tabs */}
-          <div className="mt-4 flex rounded-lg border border-line bg-canvas p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signin');
-                setError(null);
-              }}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
-                mode === 'signin' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signup');
-                setError(null);
-              }}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
-                mode === 'signup' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
-              }`}
-            >
-              Create Account
-            </button>
-          </div>
-
-          {error && (
-            <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-              {error}
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="mt-4 flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-              <Check size={16} className="mt-0.5 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
-            {mode === 'signup' && (
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-2xs font-semibold tracking-wider text-muted uppercase"
-                  htmlFor="auth-username"
+          {confirmationEmail ? (
+            <div className="mt-4 flex flex-col items-center text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl border border-accent/30 bg-accent-fill/15 text-accent shadow-sm">
+                <MailCheck size={26} />
+              </div>
+              <h3 className="mt-3 text-base font-bold text-ink">Check Your Inbox</h3>
+              <p className="mt-2 max-w-xs text-xs leading-relaxed text-muted">
+                We sent a confirmation link to <span className="font-semibold text-ink">{confirmationEmail}</span>. Click the link in the email to activate your account.
+              </p>
+              <div className="mt-5 flex w-full flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmationEmail(null);
+                    setMode('signin');
+                  }}
+                  className="inline-flex h-9 w-full items-center justify-center rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
                 >
-                  Username (optional)
-                </label>
-                <div className="relative">
-                  <User size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-                  <input
-                    id="auth-username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. rust_ace"
-                    maxLength={18}
-                    className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
-                  />
+                  Go to Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmationEmail(null)}
+                  className="inline-flex h-8 w-full items-center justify-center text-xs text-muted transition-ui hover:text-ink"
+                >
+                  Try another email
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Mode Switch Tabs */}
+              <div className="mt-4 flex rounded-lg border border-line bg-canvas p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signin');
+                    setError(null);
+                  }}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
+                    mode === 'signin' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup');
+                    setError(null);
+                  }}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
+                    mode === 'signup' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              {error && (
+                <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+                  {error}
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="flex flex-col gap-1">
-              <label
-                className="text-2xs font-semibold tracking-wider text-muted uppercase"
-                htmlFor="auth-email"
+              {successMessage && (
+                <div className="mt-4 flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+                  <Check size={16} className="mt-0.5 shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+                {mode === 'signup' && (
+                  <div className="flex flex-col gap-1">
+                    <label
+                      className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                      htmlFor="auth-username"
+                    >
+                      Username (optional)
+                    </label>
+                    <div className="relative">
+                      <User size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                      <input
+                        id="auth-username"
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="e.g. rust_ace"
+                        maxLength={18}
+                        className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                    htmlFor="auth-email"
+                  >
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                    <input
+                      id="auth-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="developer@example.com"
+                      autoComplete="email"
+                      className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                    htmlFor="auth-password"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                    <input
+                      id="auth-password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                      className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-2 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover disabled:opacity-50"
+                >
+                  {loading && <Loader2 size={14} className="animate-spin" />}
+                  {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                </button>
+              </form>
+
+              <div className="mt-4 flex items-center gap-2">
+                <span className="h-px flex-1 bg-line" />
+                <span className="text-2xs text-muted uppercase">or</span>
+                <span className="h-px flex-1 bg-line" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGuest}
+                className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
               >
-                Email
-              </label>
-              <div className="relative">
-                <Mail size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-                <input
-                  id="auth-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="developer@example.com"
-                  autoComplete="email"
-                  className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label
-                className="text-2xs font-semibold tracking-wider text-muted uppercase"
-                htmlFor="auth-password"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-                <input
-                  id="auth-password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover disabled:opacity-50"
-            >
-              {loading && <Loader2 size={14} className="animate-spin" />}
-              {mode === 'signin' ? 'Sign In' : 'Create Account'}
-            </button>
-          </form>
-
-          <div className="mt-4 flex items-center gap-2">
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-2xs text-muted uppercase">or</span>
-            <span className="h-px flex-1 bg-line" />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGuest}
-            className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
-          >
-            Continue as Guest 
-          </button>
+                Continue as Guest 
+              </button>
+            </>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -117,6 +117,7 @@ export function updateSettings(patch: Partial<Settings>) {
 export function modeKey(settings: Pick<Settings, 'mode' | 'duration' | 'lineCount'>): string {
   if (settings.mode === 'time') return `time-${settings.duration}`;
   if (settings.mode === 'lines') return `lines-${settings.lineCount}`;
+  if (settings.mode === 'custom') return `custom-${settings.duration}`;
   return settings.mode;
 }
 
@@ -124,6 +125,7 @@ export function modeKeyLabel(key: string): string {
   const [mode, value] = key.split('-');
   if (mode === 'time') return `${value}s`;
   if (mode === 'lines') return `${value} lines`;
+  if (mode === 'custom') return value ? `Custom · ${value}s` : 'Custom';
   return MODE_LABELS[mode as Mode] ?? key;
 }
 
