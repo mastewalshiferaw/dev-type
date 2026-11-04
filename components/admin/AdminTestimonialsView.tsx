@@ -38,6 +38,7 @@ export default function AdminTestimonialsView() {
   const [counts, setCounts] = useState({ all: 0, pending: 0, approved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [serviceRoleWarning, setServiceRoleWarning] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
@@ -54,6 +55,7 @@ export default function AdminTestimonialsView() {
     } else {
       setTestimonials(res.testimonials);
       setCounts(res.counts);
+      setServiceRoleWarning(res.warning || null);
     }
   };
 
@@ -69,6 +71,7 @@ export default function AdminTestimonialsView() {
       } else {
         setTestimonials(res.testimonials);
         setCounts(res.counts);
+        setServiceRoleWarning(res.warning || null);
       }
     });
 
@@ -323,14 +326,38 @@ export default function AdminTestimonialsView() {
           <Skeleton className="h-32 rounded-xl" />
         </div>
       ) : testimonials.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface/50 px-6 py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface/50 px-6 py-12 text-center">
           <MessageSquareQuote size={40} className="text-muted/40" />
           <h3 className="mt-3 text-base font-bold text-ink">No testimonials found</h3>
-          <p className="mt-1 text-xs text-muted max-w-sm">
+          <p className="mt-1 max-w-sm text-xs text-muted">
             {filter === 'pending'
-              ? 'Great job! There are no pending testimonials waiting for review.'
+              ? 'There are currently no pending testimonials visible.'
               : `There are currently no testimonials with status "${filter}".`}
           </p>
+
+          {serviceRoleWarning && (
+            <div className="mt-6 max-w-lg rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left text-xs text-ink">
+              <div className="flex items-center gap-2 font-semibold text-amber-500">
+                <ShieldAlert size={16} />
+                <span>Notice: Service Role Key Recommended</span>
+              </div>
+              <p className="mt-2 text-muted leading-relaxed">
+                Supabase database Row-Level Security (RLS) hides other users&apos; pending submissions from the public client.
+              </p>
+              <div className="mt-3 space-y-2">
+                <p className="font-semibold text-ink">To enable full moderation access, choose either:</p>
+                <div className="rounded bg-raised p-2 text-2xs font-mono">
+                  <span className="text-muted">Option 1: Add to your .env.local (and Vercel):</span><br />
+                  <span className="text-accent">SUPABASE_SERVICE_ROLE_KEY=&lt;service-role-secret&gt;</span><br />
+                  <span className="text-muted">(Supabase Dashboard &gt; Project Settings &gt; API Keys)</span>
+                </div>
+                <div className="rounded bg-raised p-2 text-2xs font-mono">
+                  <span className="text-muted">Option 2: Run the updated SQL in Supabase SQL Editor:</span><br />
+                  <span className="text-accent">supabase/migrations/20261102000002_admin_testimonials_policy.sql</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-4">

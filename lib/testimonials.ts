@@ -217,6 +217,8 @@ export interface AdminTestimonialsResponse {
     approved: number;
     rejected: number;
   };
+  hasServiceRoleKey?: boolean;
+  warning?: string;
   error?: string;
 }
 

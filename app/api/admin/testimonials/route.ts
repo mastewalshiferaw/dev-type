@@ -136,7 +136,17 @@ export async function GET(request: Request) {
       updatedAt: row.updated_at,
     }));
 
-    return NextResponse.json({ testimonials, counts });
+    const hasServiceRoleKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    return NextResponse.json({
+      testimonials,
+      counts,
+      hasServiceRoleKey,
+      warning:
+        !hasServiceRoleKey && testimonials.length === 0
+          ? 'SUPABASE_SERVICE_ROLE_KEY is not configured in your environment. Supabase Row-Level Security (RLS) hides other users\' pending submissions unless the service role key is set or admin RLS policies are applied in Supabase SQL editor.'
+          : undefined,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
     return NextResponse.json({ error: message }, { status: 500 });
