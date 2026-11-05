@@ -3,16 +3,39 @@ import { NextResponse } from 'next/server';
 import { isUserAdmin } from '@/lib/auth/admin';
 import type { TestimonialStatus } from '@/lib/testimonials';
 
-function getAdminClient(token?: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey =
+function getServiceRoleKey(): { key?: string; isPublishable?: boolean } {
+  const rawKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env['SUPABASE_SERVICE_ROLE_KEY '];
+  const trimmed = rawKey?.trim();
+
+  if (!trimmed) return {};
+
+  const anonKey = (
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  )?.trim();
+
+  // If the key is the same as the anon/publishable key or starts with sb_publishable_,
+  // it is not a service role key and cannot bypass RLS.
+  if (trimmed.startsWith('sb_publishable_') || (anonKey && trimmed === anonKey)) {
+    return { key: undefined, isPublishable: true };
+  }
+
+  return { key: trimmed, isPublishable: false };
+}
+
+function getAdminClient(token?: string) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  )?.trim();
+  const { key: serviceRoleKey } = getServiceRoleKey();
 
   if (!url) return null;
 
-  // Prefer service role key if configured (bypasses RLS safely on server)
+  // Prefer valid service role key if configured (bypasses RLS safely on server)
   if (serviceRoleKey) {
     return createClient(url, serviceRoleKey, {
       auth: { persistSession: false },
@@ -136,16 +159,23 @@ export async function GET(request: Request) {
       updatedAt: row.updated_at,
     }));
 
-    const hasServiceRoleKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const { key: serviceRoleKey, isPublishable } = getServiceRoleKey();
+    const hasServiceRoleKey = Boolean(serviceRoleKey);
+
+    let warning: string | undefined;
+    if (isPublishable) {
+      warning =
+        "SUPABASE_SERVICE_ROLE_KEY is set to a publishable key (starts with 'sb_publishable_'). Supabase requires your secret/service_role key (starts with 'sb_secret_' or a standard JWT 'eyJ...') to bypass Row-Level Security on the server.";
+    } else if (!hasServiceRoleKey && testimonials.length === 0) {
+      warning =
+        "SUPABASE_SERVICE_ROLE_KEY is not configured in your environment. Supabase Row-Level Security (RLS) hides other users' pending submissions unless the service role key is set or admin RLS policies are applied in Supabase SQL editor.";
+    }
 
     return NextResponse.json({
       testimonials,
       counts,
       hasServiceRoleKey,
-      warning:
-        !hasServiceRoleKey && testimonials.length === 0
-          ? 'SUPABASE_SERVICE_ROLE_KEY is not configured in your environment. Supabase Row-Level Security (RLS) hides other users\' pending submissions unless the service role key is set or admin RLS policies are applied in Supabase SQL editor.'
-          : undefined,
+      warning,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';

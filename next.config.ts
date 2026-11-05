@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   cacheComponents: true,
   partialPrefetching: true,
+  async redirects() {
+    return [
+      {
+        source: '/admin/testimony',
+        destination: '/admin/testimonials',
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
