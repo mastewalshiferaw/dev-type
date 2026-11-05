@@ -12,7 +12,8 @@ import type { LeaderboardEntry, LeaderboardProvider, ScoreLanguage } from './typ
 /** Rows fetched per query before de-duplicating to one score per player */
 const FETCH_LIMIT = 100;
 
-let hasUserIdColumn = process.env.NEXT_PUBLIC_SUPABASE_SCORES_HAS_USER_ID === 'true';
+// Default to true (schema parity with migration 20261102000000); gracefully falls back to false if missing
+let hasUserIdColumn = process.env.NEXT_PUBLIC_SUPABASE_SCORES_HAS_USER_ID !== 'false';
 
 interface ScoreRow {
   id: string | number;
@@ -95,7 +96,10 @@ export const supabaseProvider: LeaderboardProvider = {
   async submit(score) {
     const client = getClient();
     const session = (await client.auth.getSession()).data.session;
-    const userId = session?.user?.id ?? score.userId ?? null;
+    const rawUserId = session?.user?.id ?? score.userId ?? null;
+    // user_id in Postgres references auth.users(id) and requires a valid UUID
+    const isUuid = rawUserId ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId) : false;
+    const userId = isUuid ? rawUserId : null;
 
     // Sanitize and enforce constraints (DEV-002)
     const cleanWpm = Math.min(400, Math.max(0, Math.round(score.wpm)));

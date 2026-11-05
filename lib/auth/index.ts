@@ -110,6 +110,8 @@ export function initAuth() {
   });
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function signInWithEmail(
   email: string,
   password: string
@@ -119,9 +121,14 @@ export async function signInWithEmail(
     return { error: 'Supabase is not configured' };
   }
 
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+    return { error: 'Please enter a valid email address' };
+  }
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: cleanEmail,
       password,
     });
 
@@ -153,11 +160,16 @@ export async function signUpWithEmail(
     return { error: 'Supabase is not configured' };
   }
 
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+    return { error: 'Please enter a valid email address' };
+  }
+
   const cleanUsername = username?.trim() || `coder_${Math.random().toString(36).substring(2, 6)}`;
 
   try {
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: cleanEmail,
       password,
       options: {
         data: {
@@ -167,10 +179,25 @@ export async function signUpWithEmail(
     });
 
     if (error) {
+      const msg = error.message.toLowerCase();
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already in use') ||
+        msg.includes('already exists') ||
+        msg.includes('user already exists')
+      ) {
+        return { error: 'An account with this email address already exists. Please sign in instead.' };
+      }
       return { error: error.message };
     }
 
     if (data.user) {
+      // In Supabase, if email is already taken and anti-enumeration/confirmation is enabled,
+      // data.user is returned with an empty identities array: data.user.identities = []
+      if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        return { error: 'An account with this email address already exists. Please sign in instead.' };
+      }
+
       const authUser = formatSupabaseUser(data.user);
       if (!data.session) {
         return {

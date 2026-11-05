@@ -23,8 +23,12 @@ export function rankEntries(
   for (const entry of entries) {
     if (Date.parse(entry.createdAt) < since) continue;
     if (query.language !== 'all' && entry.language !== query.language) continue;
-    // Prefer userId for identity deduplication (DEV-006); fallback to lowercase username
-    const key = entry.userId ? `uid:${entry.userId}` : `name:${entry.username.toLowerCase()}`;
+    // Deduplicate by player identity:
+    // If the entry has a userId, deduplicate so each user keeps only their personal best score.
+    // If there is no userId (guest/anonymous submission), key by the unique entry id so that
+    // multiple players with identical or similar usernames will NEVER overwrite or displace
+    // each other on the leaderboard.
+    const key = entry.userId ? `uid:${entry.userId}` : `entry:${entry.id}`;
     const current = best.get(key);
     if (
       !current ||
@@ -45,9 +49,14 @@ export function rankEntries(
 
   const username = query.username?.toLowerCase();
   const userId = query.userId;
-  const you =
-    (userId ? ranked.find((e) => e.userId === userId) : null) ??
-    (username ? (ranked.find((e) => e.username.toLowerCase() === username) ?? null) : null);
+  // Strict identity matching for "you":
+  // 1. Authenticated users match strictly by userId. They never match another person's score.
+  // 2. Unauthenticated guests match only anonymous entries (!userId) with matching username.
+  const you = userId
+    ? (ranked.find((e) => e.userId === userId) ?? null)
+    : username
+      ? (ranked.find((e) => !e.userId && e.username.toLowerCase() === username) ?? null)
+      : null;
 
   return {
     entries: ranked.slice(0, query.limit),

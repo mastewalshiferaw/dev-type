@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import AuthModal from '@/components/auth/AuthModal';
 import Avatar from '@/components/leaderboard/Avatar';
-import { signOut, useAuth } from '@/lib/auth';
+import { signOut, useAuth, updateAuthUsername } from '@/lib/auth';
 import { clearHistory, useBests, useHistory } from '@/lib/history';
 import { languageLabel } from '@/lib/languages';
 import { usePracticeLogs } from '@/lib/logs';
@@ -22,16 +22,32 @@ interface Props {
 function UsernameForm() {
   const { username } = useProfile();
   const [draft, setDraft] = useState(username);
-  const [status, setStatus] = useState<'idle' | 'saved' | 'invalid'>('idle');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'invalid'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const save = (event: FormEvent) => {
+  const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (!USERNAME_PATTERN.test(draft.trim())) {
+    const clean = draft.trim();
+    if (!USERNAME_PATTERN.test(clean)) {
+      setErrorMessage(USERNAME_HINT);
       setStatus('invalid');
       return;
     }
-    setUsername(draft);
-    setStatus('saved');
+    setStatus('saving');
+    setErrorMessage(null);
+    try {
+      const res = await updateAuthUsername(clean);
+      if (res.error) {
+        setErrorMessage(res.error);
+        setStatus('invalid');
+        return;
+      }
+      setUsername(clean);
+      setStatus('saved');
+    } catch {
+      setErrorMessage('Failed to update username');
+      setStatus('invalid');
+    }
   };
 
   return (
@@ -46,6 +62,7 @@ function UsernameForm() {
           onChange={(event) => {
             setDraft(event.target.value);
             setStatus('idle');
+            setErrorMessage(null);
           }}
           maxLength={18}
           autoComplete="nickname"
@@ -56,10 +73,11 @@ function UsernameForm() {
         />
         <button
           type="submit"
-          className="inline-flex h-9 items-center gap-1 rounded-md bg-accent-fill px-3 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
+          disabled={status === 'saving'}
+          className="inline-flex h-9 items-center gap-1 rounded-md bg-accent-fill px-3 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover disabled:opacity-50"
         >
           {status === 'saved' ? <Check size={14} aria-hidden /> : null}
-          {status === 'saved' ? 'Saved' : 'Save'}
+          {status === 'saving' ? 'Saving...' : status === 'saved' ? 'Saved' : 'Save'}
         </button>
       </div>
       <p
@@ -67,7 +85,7 @@ function UsernameForm() {
         role={status === 'invalid' ? 'alert' : undefined}
         className={`text-2xs ${status === 'invalid' ? 'text-danger' : 'text-muted'}`}
       >
-        {USERNAME_HINT}
+        {errorMessage || USERNAME_HINT}
       </p>
     </form>
   );

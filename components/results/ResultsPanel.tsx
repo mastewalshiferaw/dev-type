@@ -13,6 +13,7 @@ import type { RunRecord } from '@/lib/history';
 import { usePracticeLogs } from '@/lib/logs';
 import { calculateStreak } from '@/lib/streak';
 import { languageLabel } from '@/lib/languages';
+import { useAuth } from '@/lib/auth';
 import { setUsername, USERNAME_HINT, USERNAME_PATTERN, useProfile } from '@/lib/profile';
 import { modeKeyLabel } from '@/lib/settings';
 
@@ -75,6 +76,7 @@ type SubmitState =
 
 function SubmitScore({ record }: { record: RunRecord }) {
   const { username } = useProfile();
+  const { user } = useAuth();
   const [draft, setDraft] = useState('');
   const [state, setState] = useState<SubmitState>({ status: 'idle' });
   const autoSubmittedRef = useRef(false);
@@ -91,6 +93,7 @@ function SubmitScore({ record }: { record: RunRecord }) {
       setState({ status: 'sending' });
       try {
         await submitScore({
+          userId: user && !user.isGuest ? user.id : undefined,
           username: name,
           wpm: record.wpm,
           accuracy: record.accuracy,
@@ -105,7 +108,7 @@ function SubmitScore({ record }: { record: RunRecord }) {
         });
       }
     },
-    [username, draft, record]
+    [username, draft, record, user]
   );
 
   useEffect(() => {

@@ -43,6 +43,12 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
       return;
     }
 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
