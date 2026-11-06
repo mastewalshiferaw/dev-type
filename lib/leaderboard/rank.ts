@@ -38,22 +38,7 @@ export function rankEntries(
     }
   }
 
-  // Deduplicate by display username so identical usernames never appear multiple times
-  // (e.g. if the same player submitted before and after logging in or across sessions)
-  const byUsername = new Map<string, LeaderboardEntry>();
-  for (const entry of best.values()) {
-    const nameKey = entry.username.trim().toLowerCase();
-    const existing = byUsername.get(nameKey);
-    if (
-      !existing ||
-      entry.wpm > existing.wpm ||
-      (entry.wpm === existing.wpm && entry.accuracy > existing.accuracy)
-    ) {
-      byUsername.set(nameKey, entry);
-    }
-  }
-
-  const sorted = [...byUsername.values()].sort((a, b) => b.wpm - a.wpm || b.accuracy - a.accuracy);
+  const sorted = [...best.values()].sort((a, b) => b.wpm - a.wpm || b.accuracy - a.accuracy);
   const ranked: RankedEntry[] = [];
   sorted.forEach((entry, index) => {
     const previous = ranked[index - 1];
@@ -64,10 +49,10 @@ export function rankEntries(
   const username = query.username?.trim().toLowerCase();
   const userId = query.userId;
   // Identity matching for "you":
-  // 1. Authenticated users match strictly by userId first, or fallback to their username.
+  // 1. Authenticated users match strictly by userId only (no username fallback to prevent showing other users' stats).
   // 2. Unauthenticated guests match by username.
   const you = userId
-    ? (ranked.find((e) => e.userId === userId) ?? (username ? ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null : null))
+    ? ranked.find((e) => e.userId === userId) ?? null
     : username
       ? (ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null)
       : null;
