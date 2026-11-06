@@ -45,6 +45,7 @@ export const practiceLogsStore = createLocalStore<UserPracticeLog[]>(LOGS_STORAG
   return raw.filter(isValidLog).slice(0, MAX_LOCAL_LOGS);
 });
 
+const MIGRATION_KEY = 'devtype:logs_migrated';
 let isSeeded = false;
 
 /**
@@ -52,6 +53,18 @@ let isSeeded = false;
  */
 export function ensureLogsMigrated() {
   if (isSeeded || typeof window === 'undefined') return;
+  
+  // Check if migration was already completed
+  try {
+    const migrated = localStorage.getItem(MIGRATION_KEY);
+    if (migrated === 'true') {
+      isSeeded = true;
+      return;
+    }
+  } catch {
+    // If localStorage fails, continue with migration check
+  }
+  
   isSeeded = true;
 
   const currentLogs = practiceLogsStore.get();
@@ -71,6 +84,12 @@ export function ensureLogsMigrated() {
         dateKey: toDateKey(run.createdAt),
       }));
       practiceLogsStore.set(migrated);
+      // Mark migration as complete
+      try {
+        localStorage.setItem(MIGRATION_KEY, 'true');
+      } catch {
+        // Ignore localStorage errors
+      }
     }
   }
 }
