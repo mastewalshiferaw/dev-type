@@ -133,7 +133,7 @@ export default function ContributionGraph({ logs }: Props) {
       <div className="relative mt-4 overflow-x-auto pb-2">
         <div className="min-w-[720px] select-none">
           {/* Month Labels */}
-          <div className="text-3xs relative mb-1 flex h-4 pl-8 font-medium text-muted">
+          <div className="relative mb-1 flex h-4 pl-8 text-3xs font-medium text-muted">
             {monthLabels.map((m, idx) => (
               <span key={idx} className="absolute" style={{ left: `${m.weekIndex * 13 + 32}px` }}>
                 {m.label}
@@ -143,7 +143,7 @@ export default function ContributionGraph({ logs }: Props) {
 
           <div className="flex gap-1">
             {/* Weekday labels */}
-            <div className="text-3xs flex w-7 shrink-0 flex-col justify-between py-0.5 pr-1 text-right font-medium text-muted">
+            <div className="flex w-7 shrink-0 flex-col justify-between py-0.5 pr-1 text-right text-3xs font-medium text-muted">
               <span className="h-2.5 leading-none">Mon</span>
               <span className="h-2.5 leading-none">Wed</span>
               <span className="h-2.5 leading-none">Fri</span>

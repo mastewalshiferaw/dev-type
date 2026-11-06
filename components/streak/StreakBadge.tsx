@@ -91,7 +91,7 @@ export default function StreakBadge({ className = '' }: Props) {
 
           {/* Week progress dots (Duolingo style) */}
           <div className="mt-4 rounded-lg border border-line bg-canvas p-2.5">
-            <p className="text-3xs mb-2 font-semibold tracking-wider text-muted uppercase">This Week</p>
+            <p className="mb-2 text-3xs font-semibold tracking-wider text-muted uppercase">This Week</p>
             <div className="grid grid-cols-7 gap-1 text-center">
               {weeklyDays.map((day, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1">

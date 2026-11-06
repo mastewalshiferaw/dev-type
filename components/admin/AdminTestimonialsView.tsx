@@ -39,9 +39,7 @@ export default function AdminTestimonialsView() {
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [serviceRoleWarning, setServiceRoleWarning] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
-    null
-  );
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [, startTransition] = useTransition();
 
   const loadData = async (activeFilter: FilterTab = filter) => {
@@ -139,7 +137,7 @@ export default function AdminTestimonialsView() {
     return (
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="rounded-2xl h-64" />
       </div>
     );
   }
@@ -147,7 +145,7 @@ export default function AdminTestimonialsView() {
   if (!user || user.isGuest) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-line bg-surface text-muted shadow-panel">
+        <div className="rounded-2xl mx-auto mb-4 flex h-14 w-14 items-center justify-center border border-line bg-surface text-muted shadow-panel">
           <ShieldAlert size={28} />
         </div>
         <h1 className="text-xl font-bold text-ink">Authentication Required</h1>
@@ -175,7 +173,7 @@ export default function AdminTestimonialsView() {
   if (!isAdmin) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-danger/30 bg-danger/10 text-danger shadow-panel">
+        <div className="rounded-2xl mx-auto mb-4 flex h-14 w-14 items-center justify-center border border-danger/30 bg-danger/10 text-danger shadow-panel">
           <ShieldAlert size={28} />
         </div>
         <h1 className="text-xl font-bold text-ink">Admin Privileges Required</h1>
@@ -183,10 +181,10 @@ export default function AdminTestimonialsView() {
           Your current account (<span className="font-semibold text-ink">{user.email}</span>) is not
           configured as an admin.
         </p>
-        <div className="mt-4 rounded-xl border border-line bg-surface p-4 text-left text-xs font-mono text-muted">
+        <div className="mt-4 rounded-xl border border-line bg-surface p-4 text-left font-mono text-xs text-muted">
           <p className="font-sans font-semibold text-ink">To grant admin rights:</p>
           <p className="mt-1">Add your email to your environment configuration:</p>
-          <code className="mt-2 block rounded bg-raised p-2 text-accent">
+          <code className="rounded mt-2 block bg-raised p-2 text-accent">
             NEXT_PUBLIC_ADMIN_EMAILS={user.email}
           </code>
         </div>
@@ -240,16 +238,14 @@ export default function AdminTestimonialsView() {
       </div>
 
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-line bg-surface p-6 shadow-panel">
+      <div className="rounded-2xl relative overflow-hidden border border-line bg-surface p-6 shadow-panel">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent-fill/10 px-2.5 py-0.5 text-xs font-bold text-accent">
               <ShieldCheck size={14} />
               Admin Portal
             </div>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink">
-              Testimonials Moderation
-            </h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink">Testimonials Moderation</h1>
             <p className="mt-1 text-sm text-muted">
               Approve community testimonials to feature them live on the homepage, or reject spam submissions.
             </p>
@@ -277,7 +273,7 @@ export default function AdminTestimonialsView() {
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
-        <div className="mr-2 flex items-center gap-1.5 text-xs font-bold text-muted uppercase tracking-wider">
+        <div className="mr-2 flex items-center gap-1.5 text-xs font-bold tracking-wider text-muted uppercase">
           <Filter size={13} />
           <span>Status:</span>
         </div>
@@ -302,12 +298,12 @@ export default function AdminTestimonialsView() {
               className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-ui ${
                 isActive
                   ? 'bg-accent-fill text-accent-ink shadow-sm'
-                  : 'bg-surface border border-line text-muted hover:bg-raised hover:text-ink'
+                  : 'border border-line bg-surface text-muted hover:bg-raised hover:text-ink'
               }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`rounded-full px-1.5 py-0.2 text-3xs font-mono font-bold ${
+                className={`py-0.2 rounded-full px-1.5 font-mono text-3xs font-bold ${
                   isActive ? 'bg-accent-ink/20 text-accent-ink' : 'bg-raised text-ink'
                 }`}
               >
@@ -326,7 +322,7 @@ export default function AdminTestimonialsView() {
           <Skeleton className="h-32 rounded-xl" />
         </div>
       ) : testimonials.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface/50 px-6 py-12 text-center">
+        <div className="rounded-2xl flex flex-col items-center justify-center border border-dashed border-line bg-surface/50 px-6 py-12 text-center">
           <MessageSquareQuote size={40} className="text-muted/40" />
           <h3 className="mt-3 text-base font-bold text-ink">No testimonials found</h3>
           <p className="mt-1 max-w-sm text-xs text-muted">
@@ -341,19 +337,25 @@ export default function AdminTestimonialsView() {
                 <ShieldAlert size={16} />
                 <span>Notice: Service Role Key Recommended</span>
               </div>
-              <p className="mt-2 text-muted leading-relaxed">
-                Supabase database Row-Level Security (RLS) hides other users&apos; pending submissions from the public client.
+              <p className="mt-2 leading-relaxed text-muted">
+                Supabase database Row-Level Security (RLS) hides other users&apos; pending submissions from
+                the public client.
               </p>
               <div className="mt-3 space-y-2">
                 <p className="font-semibold text-ink">To enable full moderation access, choose either:</p>
-                <div className="rounded bg-raised p-2 text-2xs font-mono">
-                  <span className="text-muted">Option 1: Add to your .env.local (and Vercel):</span><br />
-                  <span className="text-accent">SUPABASE_SERVICE_ROLE_KEY=&lt;service-role-secret&gt;</span><br />
+                <div className="rounded bg-raised p-2 font-mono text-2xs">
+                  <span className="text-muted">Option 1: Add to your .env.local (and Vercel):</span>
+                  <br />
+                  <span className="text-accent">SUPABASE_SERVICE_ROLE_KEY=&lt;service-role-secret&gt;</span>
+                  <br />
                   <span className="text-muted">(Supabase Dashboard &gt; Project Settings &gt; API Keys)</span>
                 </div>
-                <div className="rounded bg-raised p-2 text-2xs font-mono">
-                  <span className="text-muted">Option 2: Run the updated SQL in Supabase SQL Editor:</span><br />
-                  <span className="text-accent">supabase/migrations/20261102000002_admin_testimonials_policy.sql</span>
+                <div className="rounded bg-raised p-2 font-mono text-2xs">
+                  <span className="text-muted">Option 2: Run the updated SQL in Supabase SQL Editor:</span>
+                  <br />
+                  <span className="text-accent">
+                    supabase/migrations/20261102000002_admin_testimonials_policy.sql
+                  </span>
                 </div>
               </div>
             </div>
@@ -367,22 +369,22 @@ export default function AdminTestimonialsView() {
             return (
               <div
                 key={t.id}
-                className="group relative flex flex-col justify-between gap-4 rounded-2xl border border-line bg-surface p-5 shadow-panel transition-ui hover:border-line-strong sm:flex-row sm:items-start"
+                className="group rounded-2xl relative flex flex-col justify-between gap-4 border border-line bg-surface p-5 shadow-panel transition-ui hover:border-line-strong sm:flex-row sm:items-start"
               >
                 {/* Left: User details & quote */}
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <Avatar name={t.name} size="sm" />
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-ink">{t.name}</span>
                         {t.isVerified && (
-                          <span className="text-3xs inline-flex items-center rounded bg-accent-fill/15 px-1.5 py-0.5 font-semibold text-accent">
+                          <span className="rounded inline-flex items-center bg-accent-fill/15 px-1.5 py-0.5 text-3xs font-semibold text-accent">
                             Verified User
                           </span>
                         )}
                         {t.wpmRecord !== undefined && (
-                          <span className="text-3xs inline-flex items-center font-mono font-bold text-muted bg-raised px-1.5 py-0.5 rounded">
+                          <span className="rounded inline-flex items-center bg-raised px-1.5 py-0.5 font-mono text-3xs font-bold text-muted">
                             ⚡ {t.wpmRecord} WPM
                           </span>
                         )}
@@ -414,13 +416,14 @@ export default function AdminTestimonialsView() {
                   </div>
 
                   {/* Quote block */}
-                  <blockquote className="mt-3.5 border-l-2 border-accent/40 pl-3.5 text-sm italic text-ink-dim font-sans leading-relaxed">
+                  <blockquote className="mt-3.5 border-l-2 border-accent/40 pl-3.5 font-sans text-sm leading-relaxed text-ink-dim italic">
                     &ldquo;{t.quote}&rdquo;
                   </blockquote>
 
                   {t.createdAt && (
-                    <p className="mt-3 text-3xs font-mono text-muted">
-                      Submitted: {new Date(t.createdAt).toLocaleString(undefined, {
+                    <p className="mt-3 font-mono text-3xs text-muted">
+                      Submitted:{' '}
+                      {new Date(t.createdAt).toLocaleString(undefined, {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
@@ -432,13 +435,13 @@ export default function AdminTestimonialsView() {
                 </div>
 
                 {/* Right: Actions */}
-                <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 pt-3 border-t border-line sm:border-t-0 sm:pt-0">
+                <div className="flex flex-row items-center gap-2 border-t border-line pt-3 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
                   {t.status !== 'approved' && (
                     <button
                       type="button"
                       disabled={isBusy}
                       onClick={() => handleStatusChange(t.id, 'approved')}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs font-bold shadow-sm transition-ui disabled:opacity-50"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm transition-ui hover:bg-emerald-700 disabled:opacity-50"
                     >
                       <CheckCircle2 size={13} />
                       <span>Approve</span>
@@ -450,7 +453,7 @@ export default function AdminTestimonialsView() {
                       type="button"
                       disabled={isBusy}
                       onClick={() => handleStatusChange(t.id, 'rejected')}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-600 dark:text-rose-400 px-3 text-xs font-semibold transition-ui disabled:opacity-50"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-xs font-semibold text-rose-600 transition-ui hover:border-rose-500/30 hover:bg-rose-500/10 disabled:opacity-50 dark:text-rose-400"
                     >
                       <XCircle size={13} />
                       <span>Reject</span>
@@ -462,7 +465,7 @@ export default function AdminTestimonialsView() {
                       type="button"
                       disabled={isBusy}
                       onClick={() => handleStatusChange(t.id, 'pending')}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface hover:bg-raised text-muted hover:text-ink px-3 text-xs font-medium transition-ui disabled:opacity-50"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-xs font-medium text-muted transition-ui hover:bg-raised hover:text-ink disabled:opacity-50"
                     >
                       <Clock size={13} />
                       <span>Revert to Pending</span>
@@ -473,7 +476,7 @@ export default function AdminTestimonialsView() {
                     type="button"
                     disabled={isBusy}
                     onClick={() => handleDelete(t.id, t.name)}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg text-muted/60 hover:text-danger hover:bg-danger/10 px-2 text-xs transition-ui disabled:opacity-50"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-muted/60 transition-ui hover:bg-danger/10 hover:text-danger disabled:opacity-50"
                     title="Delete permanently"
                   >
                     <Trash2 size={13} />

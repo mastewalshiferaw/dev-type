@@ -6,10 +6,8 @@ export const TESTIMONIALS = [
     role: 'Creator & Maintainer',
   },
   {
-    quote:
-      "Proud to be a contributor",
+    quote: 'Proud to be a contributor',
     name: 'Bira Girma',
     role: 'UI/UX Designer for _Dev_Type',
   },
-
 ] as const;

@@ -110,19 +110,19 @@ export default function AccountView() {
                 <h1 className="text-xl font-bold text-ink">{user?.username || 'Guest Coder'}</h1>
                 {user && !user.isGuest ? (
                   <>
-                    <span className="text-3xs inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 font-bold text-success">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-3xs font-bold text-success">
                       <UserCheck size={11} />
                       Verified
                     </span>
                     {isUserAdmin(user) && (
-                      <span className="text-3xs inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent-fill/10 px-2 py-0.5 font-bold text-accent">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent-fill/10 px-2 py-0.5 text-3xs font-bold text-accent">
                         <ShieldCheck size={11} />
                         Admin
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-3xs rounded-full bg-raised px-2 py-0.5 font-medium text-muted">
+                  <span className="rounded-full bg-raised px-2 py-0.5 text-3xs font-medium text-muted">
                     Local Guest
                   </span>
                 )}
@@ -136,27 +136,27 @@ export default function AccountView() {
           {/* Quick Metrics */}
           <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
             <div className="rounded-lg border border-line bg-canvas/60 px-3 py-2">
-              <span className="text-3xs label text-muted">Total Runs</span>
+              <span className="label text-3xs text-muted">Total Runs</span>
               <p className="text-base font-bold text-ink tabular-nums">{totalRuns}</p>
             </div>
             <div className="rounded-lg border border-line bg-canvas/60 px-3 py-2">
-              <span className="text-3xs label text-muted">Top Speed</span>
+              <span className="label text-3xs text-muted">Top Speed</span>
               <p className="text-base font-bold text-ink tabular-nums">
                 {bestWpm} <span className="text-3xs font-normal text-muted">WPM</span>
               </p>
             </div>
             <div className="rounded-lg border border-line bg-canvas/60 px-3 py-2">
-              <span className="text-3xs label text-muted">Avg Speed</span>
+              <span className="label text-3xs text-muted">Avg Speed</span>
               <p className="text-base font-bold text-ink tabular-nums">
                 {avgWpm} <span className="text-3xs font-normal text-muted">WPM</span>
               </p>
             </div>
             <div className="rounded-lg border border-line bg-canvas/60 px-3 py-2">
-              <span className="text-3xs label text-muted">Active Days</span>
+              <span className="label text-3xs text-muted">Active Days</span>
               <p className="text-base font-bold text-ink tabular-nums">{totalActiveDays}</p>
             </div>
             <div className="rounded-lg border border-line bg-canvas/60 px-3 py-2">
-              <span className="text-3xs label text-muted">Typing Time</span>
+              <span className="label text-3xs text-muted">Typing Time</span>
               <p className="text-base font-bold text-ink tabular-nums">
                 {totalMinutes >= 60
                   ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`
@@ -274,7 +274,7 @@ export default function AccountView() {
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-3xs border-b border-line font-bold tracking-wider text-muted uppercase">
+                <tr className="border-b border-line text-3xs font-bold tracking-wider text-muted uppercase">
                   <th className="py-2 pr-3">Date</th>
                   <th className="px-3 py-2">Language</th>
                   <th className="px-3 py-2">Mode</th>

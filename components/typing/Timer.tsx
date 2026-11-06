@@ -88,14 +88,14 @@ export default function Timer({ seconds, countdown, urgent, currentDuration = 30
           className="z-50 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2.5 shadow-modal data-[state=open]:animate-pop"
         >
           <div className="flex items-center justify-between gap-4 px-1">
-            <span className="text-3xs flex items-center gap-1.5 font-semibold tracking-wider text-muted uppercase">
+            <span className="flex items-center gap-1.5 text-3xs font-semibold tracking-wider text-muted uppercase">
               <Clock size={11} aria-hidden />
               Timer Duration
             </span>
             <button
               type="button"
               onClick={cycleNext}
-              className="text-3xs flex items-center gap-1 font-medium text-accent hover:underline"
+              className="flex items-center gap-1 text-3xs font-medium text-accent hover:underline"
               title="Switch to next duration"
             >
               <RotateCcw size={10} aria-hidden />

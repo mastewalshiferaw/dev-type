@@ -17,7 +17,7 @@ async function TestimonialsList() {
             <div className="flex items-center justify-between">
               <Quote size={20} aria-hidden className="text-accent" />
               {testimonial.wpmRecord ? (
-                <span className="text-3xs rounded-full border border-line bg-canvas px-2.5 py-0.5 font-mono font-bold text-ink">
+                <span className="rounded-full border border-line bg-canvas px-2.5 py-0.5 font-mono text-3xs font-bold text-ink">
                   ⚡ {testimonial.wpmRecord} WPM
                 </span>
               ) : null}
@@ -34,7 +34,7 @@ async function TestimonialsList() {
                   <span className="flex items-center gap-1 text-sm font-semibold text-ink">
                     {testimonial.name}
                     {testimonial.isVerified && (
-                      <BadgeCheck size={14} className="text-accent shrink-0" aria-label="Verified user" />
+                      <BadgeCheck size={14} className="shrink-0 text-accent" aria-label="Verified user" />
                     )}
                   </span>
                   <span className="font-sans text-xs text-muted">{testimonial.role}</span>
@@ -52,10 +52,7 @@ function TestimonialsSkeleton() {
   return (
     <ul className="mt-16 grid gap-4 md:grid-cols-3">
       {[1, 2, 3].map((i) => (
-        <li
-          key={i}
-          className="h-48 animate-pulse rounded-xl border border-line bg-surface/50 p-6"
-        />
+        <li key={i} className="h-48 animate-pulse rounded-xl border border-line bg-surface/50 p-6" />
       ))}
     </ul>
   );

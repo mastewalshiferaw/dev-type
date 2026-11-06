@@ -2,7 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, CheckCircle2, Clock, MessageSquareQuote, Send, ShieldCheck, Trash2, Edit3, AlertCircle } from 'lucide-react';
+import {
+  BadgeCheck,
+  CheckCircle2,
+  Clock,
+  MessageSquareQuote,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Edit3,
+  AlertCircle,
+} from 'lucide-react';
 import Avatar from '@/components/leaderboard/Avatar';
 import type { AuthUser } from '@/lib/auth/types';
 import { isUserAdmin } from '@/lib/auth/admin';
@@ -20,12 +30,7 @@ interface TestimonialCardProps {
   onOpenAuth: () => void;
 }
 
-export default function TestimonialCard({
-  user,
-  bestWpm,
-  totalRuns,
-  onOpenAuth,
-}: TestimonialCardProps) {
+export default function TestimonialCard({ user, bestWpm, totalRuns, onOpenAuth }: TestimonialCardProps) {
   const [testimonial, setTestimonial] = useState<Testimonial | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -104,7 +109,7 @@ export default function TestimonialCard({
       <div className="rounded-xl border border-line bg-surface p-5 shadow-panel">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl flex size-10 items-center justify-center bg-accent-fill/10 text-accent">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-accent-fill/10 text-accent">
               <MessageSquareQuote size={22} />
             </div>
             <div>
@@ -117,7 +122,7 @@ export default function TestimonialCard({
           <button
             type="button"
             onClick={onOpenAuth}
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover shrink-0"
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
           >
             Sign In to Submit
           </button>
@@ -132,7 +137,7 @@ export default function TestimonialCard({
         <div className="flex items-center gap-2">
           <MessageSquareQuote size={18} className="text-accent" />
           <h3 className="text-sm font-bold text-ink">Community Testimonial</h3>
-          <span className="text-3xs inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 font-bold text-success">
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-3xs font-bold text-success">
             <BadgeCheck size={11} />
             Verified
           </span>
@@ -191,7 +196,7 @@ export default function TestimonialCard({
         /* Status Display */
         <div className="mt-4 flex flex-col gap-4">
           <div
-            className={`rounded-lg border px-3 py-2.5 text-xs flex items-center gap-2.5 ${
+            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs ${
               testimonial.status === 'approved'
                 ? 'border-success/30 bg-success/10 text-success'
                 : testimonial.status === 'rejected'
@@ -203,7 +208,8 @@ export default function TestimonialCard({
               <>
                 <CheckCircle2 size={16} className="shrink-0" />
                 <span>
-                  <strong>Featured Live!</strong> Your testimonial is approved and visible on the DevType homepage.
+                  <strong>Featured Live!</strong> Your testimonial is approved and visible on the DevType
+                  homepage.
                 </span>
               </>
             ) : testimonial.status === 'rejected' ? (
@@ -215,7 +221,8 @@ export default function TestimonialCard({
               <>
                 <Clock size={16} className="shrink-0" />
                 <span>
-                  <strong>Under Review:</strong> We review testimonials to prevent spam. Once approved, it will appear on the homepage.
+                  <strong>Under Review:</strong> We review testimonials to prevent spam. Once approved, it
+                  will appear on the homepage.
                 </span>
               </>
             )}
@@ -238,7 +245,7 @@ export default function TestimonialCard({
                 </div>
               </div>
               {bestWpm > 0 && (
-                <span className="text-3xs rounded-full border border-line bg-surface px-2.5 py-1 font-mono font-bold text-ink">
+                <span className="rounded-full border border-line bg-surface px-2.5 py-1 font-mono text-3xs font-bold text-ink">
                   ⚡ {bestWpm} WPM
                 </span>
               )}
@@ -253,7 +260,10 @@ export default function TestimonialCard({
           </p>
 
           <div>
-            <label htmlFor="test-role" className="text-3xs block font-bold uppercase tracking-wider text-muted">
+            <label
+              htmlFor="test-role"
+              className="block text-3xs font-bold tracking-wider text-muted uppercase"
+            >
               Your Title / Role
             </label>
             <input
@@ -270,10 +280,15 @@ export default function TestimonialCard({
 
           <div>
             <div className="flex items-center justify-between">
-              <label htmlFor="test-quote" className="text-3xs block font-bold uppercase tracking-wider text-muted">
+              <label
+                htmlFor="test-quote"
+                className="block text-3xs font-bold tracking-wider text-muted uppercase"
+              >
                 Your Testimonial (15 – 280 characters)
               </label>
-              <span className={`text-3xs tabular-nums ${quote.length > 280 ? 'text-danger font-bold' : 'text-muted'}`}>
+              <span
+                className={`text-3xs tabular-nums ${quote.length > 280 ? 'font-bold text-danger' : 'text-muted'}`}
+              >
                 {quote.length}/280
               </span>
             </div>
@@ -286,7 +301,7 @@ export default function TestimonialCard({
               minLength={15}
               maxLength={280}
               required
-              className="mt-1 w-full rounded-md border border-line bg-canvas p-2.5 text-xs text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none resize-none"
+              className="mt-1 w-full resize-none rounded-md border border-line bg-canvas p-2.5 text-xs text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
             />
           </div>
 

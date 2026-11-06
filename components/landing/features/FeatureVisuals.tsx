@@ -170,15 +170,16 @@ export function LeaderboardVisual() {
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={ref} className="flex h-full flex-col justify-center items-center text-center p-6 gap-3 select-none">
+    <div
+      ref={ref}
+      className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center select-none"
+    >
       <p className="flex items-center gap-2 text-2xs text-muted">
         <span className="size-2 rounded-full bg-success" />
         Live sprint (24h)
       </p>
-      <div className="flex flex-col items-center justify-center gap-2 w-full rounded-md border border-line bg-surface/50 p-5 shadow-panel">
-        <div className="flex size-9 items-center justify-center rounded-full bg-raised text-base">
-          🏆
-        </div>
+      <div className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-line bg-surface/50 p-5 shadow-panel">
+        <div className="flex size-9 items-center justify-center rounded-full bg-raised text-base">🏆</div>
         <div className="space-y-0.5">
           <p className="text-xs font-semibold text-ink">Leaderboard is open</p>
           <p className="text-2xs text-muted">Waiting for today&apos;s sprint champion</p>

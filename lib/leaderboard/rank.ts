@@ -52,7 +52,7 @@ export function rankEntries(
   // 1. Authenticated users match strictly by userId only (no username fallback to prevent showing other users' stats).
   // 2. Unauthenticated guests match by username.
   const you = userId
-    ? ranked.find((e) => e.userId === userId) ?? null
+    ? (ranked.find((e) => e.userId === userId) ?? null)
     : username
       ? (ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null)
       : null;

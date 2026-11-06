@@ -38,7 +38,9 @@ const toEntry = (row: ScoreRow): LeaderboardEntry => ({
   username: row.player_name,
   wpm: Math.round(row.wpm),
   accuracy: Number(row.accuracy),
-  language: (isLanguageId(row.language?.toLowerCase()) ? row.language!.toLowerCase() : 'mixed') as ScoreLanguage,
+  language: (isLanguageId(row.language?.toLowerCase())
+    ? row.language!.toLowerCase()
+    : 'mixed') as ScoreLanguage,
   modeKey: row.mode ?? 'time-30',
   createdAt: row.created_at,
 });
@@ -52,9 +54,7 @@ export const supabaseProvider: LeaderboardProvider = {
           ? getClient()
               .from('scores')
               .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
-          : getClient()
-              .from('scores')
-              .select('id, player_name, wpm, accuracy, language, mode, created_at');
+          : getClient().from('scores').select('id, player_name, wpm, accuracy, language, mode, created_at');
 
         let filtered = req
           .gte('created_at', new Date(timeframeStart(query.timeframe, now)).toISOString())
@@ -98,7 +98,9 @@ export const supabaseProvider: LeaderboardProvider = {
     const session = (await client.auth.getSession()).data.session;
     const rawUserId = session?.user?.id ?? score.userId ?? null;
     // user_id in Postgres references auth.users(id) and requires a valid UUID
-    const isUuid = rawUserId ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId) : false;
+    const isUuid = rawUserId
+      ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId)
+      : false;
     const userId = isUuid ? rawUserId : null;
 
     // Sanitize and enforce constraints (DEV-002)

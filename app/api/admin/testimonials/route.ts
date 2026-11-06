@@ -4,16 +4,13 @@ import { isUserAdmin } from '@/lib/auth/admin';
 import type { TestimonialStatus } from '@/lib/testimonials';
 
 function getServiceRoleKey(): { key?: string; isPublishable?: boolean } {
-  const rawKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env['SUPABASE_SERVICE_ROLE_KEY '];
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env['SUPABASE_SERVICE_ROLE_KEY '];
   const trimmed = rawKey?.trim();
 
   if (!trimmed) return {};
 
   const anonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   )?.trim();
 
   // If the key is the same as the anon/publishable key or starts with sb_publishable_,
@@ -28,8 +25,7 @@ function getServiceRoleKey(): { key?: string; isPublishable?: boolean } {
 function getAdminClient(token?: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const anonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   )?.trim();
   const { key: serviceRoleKey } = getServiceRoleKey();
 
@@ -67,8 +63,7 @@ async function verifyAdmin(request: Request) {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !anonKey) {
     return { error: 'Database is not configured', status: 500 };

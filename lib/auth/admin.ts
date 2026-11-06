@@ -15,11 +15,7 @@ export function isUserAdmin(user: AuthUser | null | undefined): boolean {
     return false;
   }
 
-  const configured = (
-    process.env.NEXT_PUBLIC_ADMIN_EMAILS ||
-    process.env.ADMIN_EMAILS ||
-    ''
-  )
+  const configured = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);

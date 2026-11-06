@@ -2,6 +2,7 @@
   "singleQuote": true,
   "printWidth": 110,
   "trailingComma": "es5",
+  "endOfLine": "auto",
   "plugins": ["prettier-plugin-tailwindcss"],
   "tailwindStylesheet": "./app/globals.css"
 }

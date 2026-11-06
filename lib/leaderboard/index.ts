@@ -11,7 +11,8 @@ let provider: Promise<LeaderboardProvider> | null = null;
 export function getLeaderboard(): Promise<LeaderboardProvider> {
   const shouldUseSupabase =
     process.env.NEXT_PUBLIC_LEADERBOARD_PROVIDER === 'supabase' ||
-    (process.env.NEXT_PUBLIC_LEADERBOARD_PROVIDER !== 'mock' && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL));
+    (process.env.NEXT_PUBLIC_LEADERBOARD_PROVIDER !== 'mock' &&
+      Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL));
 
   provider ??= shouldUseSupabase
     ? import('./supabase').then((m) => m.supabaseProvider)

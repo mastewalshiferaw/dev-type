@@ -53,7 +53,7 @@ let isSeeded = false;
  */
 export function ensureLogsMigrated() {
   if (isSeeded || typeof window === 'undefined') return;
-  
+
   // Check if migration was already completed
   try {
     const migrated = localStorage.getItem(MIGRATION_KEY);
@@ -64,7 +64,7 @@ export function ensureLogsMigrated() {
   } catch {
     // If localStorage fails, continue with migration check
   }
-  
+
   isSeeded = true;
 
   const currentLogs = practiceLogsStore.get();

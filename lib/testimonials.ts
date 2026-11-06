@@ -143,9 +143,7 @@ export async function submitUserTestimonial(
   const cleanQuote = submission.quote.trim();
   const cleanRole = submission.role.trim().slice(0, 50) || 'Developer';
   const cleanWpm =
-    submission.wpmRecord !== undefined
-      ? Math.max(0, Math.min(400, Math.round(submission.wpmRecord)))
-      : null;
+    submission.wpmRecord !== undefined ? Math.max(0, Math.min(400, Math.round(submission.wpmRecord))) : null;
 
   if (cleanQuote.length < 15) {
     return { error: 'Testimonial must be at least 15 characters long.' };
@@ -224,7 +222,12 @@ export interface AdminTestimonialsResponse {
 
 export async function fetchAdminTestimonials(status: string = 'all'): Promise<AdminTestimonialsResponse> {
   const supabase = getSupabase();
-  if (!supabase) return { testimonials: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 }, error: 'Supabase is not configured' };
+  if (!supabase)
+    return {
+      testimonials: [],
+      counts: { all: 0, pending: 0, approved: 0, rejected: 0 },
+      error: 'Supabase is not configured',
+    };
 
   try {
     const {
@@ -232,7 +235,11 @@ export async function fetchAdminTestimonials(status: string = 'all'): Promise<Ad
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      return { testimonials: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 }, error: 'Not authenticated' };
+      return {
+        testimonials: [],
+        counts: { all: 0, pending: 0, approved: 0, rejected: 0 },
+        error: 'Not authenticated',
+      };
     }
 
     const res = await fetch(`/api/admin/testimonials?status=${encodeURIComponent(status)}`, {
@@ -243,7 +250,11 @@ export async function fetchAdminTestimonials(status: string = 'all'): Promise<Ad
 
     const data = await res.json();
     if (!res.ok) {
-      return { testimonials: [], counts: { all: 0, pending: 0, approved: 0, rejected: 0 }, error: data.error || 'Failed to fetch' };
+      return {
+        testimonials: [],
+        counts: { all: 0, pending: 0, approved: 0, rejected: 0 },
+        error: data.error || 'Failed to fetch',
+      };
     }
 
     return data;
@@ -322,4 +333,3 @@ export async function deleteAdminTestimonial(id: string): Promise<{ success?: bo
     return { error: err instanceof Error ? err.message : 'Failed to delete testimonial' };
   }
 }
-

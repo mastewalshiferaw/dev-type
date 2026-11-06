@@ -125,12 +125,14 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
 
           {confirmationEmail ? (
             <div className="mt-4 flex flex-col items-center text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl border border-accent/30 bg-accent-fill/15 text-accent shadow-sm">
+              <div className="rounded-2xl flex size-12 items-center justify-center border border-accent/30 bg-accent-fill/15 text-accent shadow-sm">
                 <MailCheck size={26} />
               </div>
               <h3 className="mt-3 text-base font-bold text-ink">Check Your Inbox</h3>
               <p className="mt-2 max-w-xs text-xs leading-relaxed text-muted">
-                We sent a confirmation link to <span className="font-semibold text-ink">{confirmationEmail}</span>. Click the link in the email to activate your account.
+                We sent a confirmation link to{' '}
+                <span className="font-semibold text-ink">{confirmationEmail}</span>. Click the link in the
+                email to activate your account.
               </p>
               <div className="mt-5 flex w-full flex-col gap-2">
                 <button
@@ -284,7 +286,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                 onClick={handleGuest}
                 className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
               >
-                Continue as Guest 
+                Continue as Guest
               </button>
             </>
           )}

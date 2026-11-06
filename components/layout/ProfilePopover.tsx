@@ -159,7 +159,6 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
               <div className="rounded-lg border border-accent/20 bg-accent/5 p-2.5 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 font-semibold text-accent-strong">
-                   
                     Sync across devices
                   </div>
                   <button
