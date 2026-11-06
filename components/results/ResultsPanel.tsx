@@ -89,6 +89,19 @@ function SubmitScore({ record }: { record: RunRecord }) {
         setState({ status: 'error', message: USERNAME_HINT });
         return;
       }
+
+      // Check if this record was already submitted
+      const SUBMITTED_KEY = 'devtype:submitted_scores';
+      try {
+        const submittedIds = JSON.parse(localStorage.getItem(SUBMITTED_KEY) ?? '[]') as string[];
+        if (submittedIds.includes(record.id)) {
+          setState({ status: 'done' });
+          return;
+        }
+      } catch {
+        // If localStorage fails, continue with submission
+      }
+
       if (!username) setUsername(name);
       setState({ status: 'sending' });
       try {
@@ -100,6 +113,21 @@ function SubmitScore({ record }: { record: RunRecord }) {
           language: record.language === 'custom' ? 'mixed' : record.language,
           modeKey: record.modeKey,
         });
+
+        // Mark this record as submitted
+        try {
+          const SUBMITTED_KEY = 'devtype:submitted_scores';
+          const submittedIds = JSON.parse(localStorage.getItem(SUBMITTED_KEY) ?? '[]') as string[];
+          submittedIds.push(record.id);
+          // Keep only last 100 submitted IDs
+          if (submittedIds.length > 100) {
+            submittedIds.splice(0, submittedIds.length - 100);
+          }
+          localStorage.setItem(SUBMITTED_KEY, JSON.stringify(submittedIds));
+        } catch {
+          // Ignore localStorage errors
+        }
+
         setState({ status: 'done' });
       } catch (error) {
         setState({
