@@ -35,6 +35,7 @@ export interface LeaderboardQuery {
 
 export interface LeaderboardPage {
   entries: RankedEntry[];
+  totalCount: number;
   you: RankedEntry | null;
 }
 

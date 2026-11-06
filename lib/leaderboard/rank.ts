@@ -23,12 +23,11 @@ export function rankEntries(
   for (const entry of entries) {
     if (Date.parse(entry.createdAt) < since) continue;
     if (query.language !== 'all' && entry.language !== query.language) continue;
+
     // Deduplicate by player identity:
-    // If the entry has a userId, deduplicate so each user keeps only their personal best score.
-    // If there is no userId (guest/anonymous submission), key by the unique entry id so that
-    // multiple players with identical or similar usernames will NEVER overwrite or displace
-    // each other on the leaderboard.
-    const key = entry.userId ? `uid:${entry.userId}` : `entry:${entry.id}`;
+    // Every player gets ONE single entry representing their personal best score in this window.
+    // If authenticated with a userId, key by userId. Otherwise, key by normalized username.
+    const key = entry.userId ? `uid:${entry.userId}` : `name:${entry.username.trim().toLowerCase()}`;
     const current = best.get(key);
     if (
       !current ||
@@ -39,7 +38,22 @@ export function rankEntries(
     }
   }
 
-  const sorted = [...best.values()].sort((a, b) => b.wpm - a.wpm || b.accuracy - a.accuracy);
+  // Deduplicate by display username so identical usernames never appear multiple times
+  // (e.g. if the same player submitted before and after logging in or across sessions)
+  const byUsername = new Map<string, LeaderboardEntry>();
+  for (const entry of best.values()) {
+    const nameKey = entry.username.trim().toLowerCase();
+    const existing = byUsername.get(nameKey);
+    if (
+      !existing ||
+      entry.wpm > existing.wpm ||
+      (entry.wpm === existing.wpm && entry.accuracy > existing.accuracy)
+    ) {
+      byUsername.set(nameKey, entry);
+    }
+  }
+
+  const sorted = [...byUsername.values()].sort((a, b) => b.wpm - a.wpm || b.accuracy - a.accuracy);
   const ranked: RankedEntry[] = [];
   sorted.forEach((entry, index) => {
     const previous = ranked[index - 1];
@@ -47,19 +61,20 @@ export function rankEntries(
     ranked.push({ ...entry, rank: tied ? previous.rank : index + 1 });
   });
 
-  const username = query.username?.toLowerCase();
+  const username = query.username?.trim().toLowerCase();
   const userId = query.userId;
-  // Strict identity matching for "you":
-  // 1. Authenticated users match strictly by userId. They never match another person's score.
-  // 2. Unauthenticated guests match only anonymous entries (!userId) with matching username.
+  // Identity matching for "you":
+  // 1. Authenticated users match strictly by userId first, or fallback to their username.
+  // 2. Unauthenticated guests match by username.
   const you = userId
-    ? (ranked.find((e) => e.userId === userId) ?? null)
+    ? (ranked.find((e) => e.userId === userId) ?? (username ? ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null : null))
     : username
-      ? (ranked.find((e) => !e.userId && e.username.toLowerCase() === username) ?? null)
+      ? (ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null)
       : null;
 
   return {
     entries: ranked.slice(0, query.limit),
+    totalCount: ranked.length,
     you,
   };
 }

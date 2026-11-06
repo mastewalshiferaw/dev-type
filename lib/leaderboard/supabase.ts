@@ -10,7 +10,7 @@ import type { LeaderboardEntry, LeaderboardProvider, ScoreLanguage } from './typ
  */
 
 /** Rows fetched per query before de-duplicating to one score per player */
-const FETCH_LIMIT = 100;
+const FETCH_LIMIT = 500;
 
 // Default to true (schema parity with migration 20261102000000); gracefully falls back to false if missing
 let hasUserIdColumn = process.env.NEXT_PUBLIC_SUPABASE_SCORES_HAS_USER_ID !== 'false';
