@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
-import { profileStore, setUsername } from '@/lib/profile';
+import { profileStore, setUsername, USERNAME_PATTERN } from '@/lib/profile';
 import { createLocalStore } from '@/lib/store';
 import type { AuthState, AuthUser } from './types';
 
@@ -16,8 +16,7 @@ const guestStore = createLocalStore<GuestStoreData>(GUEST_KEY, { user: null }, (
 );
 
 function formatSupabaseUser(user: User): AuthUser {
-  const username =
-    (user.user_metadata?.username as string | undefined) || `coder_${user.id.substring(0, 4)}`;
+  const username = (user.user_metadata?.username as string | undefined) || `coder_${user.id.substring(0, 4)}`;
 
   return {
     id: user.id,
@@ -42,6 +41,79 @@ function emitAuthChange() {
 function updateAuthState(partial: Partial<AuthState>) {
   currentAuthState = { ...currentAuthState, ...partial };
   emitAuthChange();
+}
+
+/**
+ * Checks whether a username is available by querying existing scores and testimonials.
+ * Uses the scores table's `player_name` column (public read via RLS) as the primary
+ * source of taken usernames, plus the testimonials table as a secondary check.
+ *
+ * Case-insensitive: "RustAce" and "rustace" are considered the same name.
+ * ilike may over-match due to the _ wildcard, so rows are fetched and compared precisely.
+ *
+ * Returns true when Supabase is not configured so signup is never blocked by a missing backend.
+ */
+export async function checkUsernameAvailable(username: string, excludeUserId?: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return true;
+
+  const clean = username.trim();
+  if (!clean || !USERNAME_PATTERN.test(clean)) return false;
+
+  const lower = clean.toLowerCase();
+
+  try {
+    // Primary source: the scores table (public read via RLS, stores player_name)
+    const { data: scoreRows } = await supabase
+      .from('scores')
+      .select('player_name, user_id')
+      .ilike('player_name', clean)
+      .limit(100);
+
+    const scoreMatches = (scoreRows ?? []).filter((row) => row.player_name?.toLowerCase() === lower);
+
+    if (scoreMatches.length > 0) {
+      if (excludeUserId) {
+        // For updates: available only if every match belongs to this user
+        return scoreMatches.every((row) => row.user_id === excludeUserId);
+      }
+      return false;
+    }
+
+    // Secondary source: the testimonials table (public read of approved testimonials)
+    const { data: testimonialRows } = await supabase
+      .from('testimonials')
+      .select('username, user_id')
+      .ilike('username', clean)
+      .limit(100);
+
+    const testimonialMatches = (testimonialRows ?? []).filter((row) => row.username?.toLowerCase() === lower);
+
+    if (testimonialMatches.length > 0) {
+      if (excludeUserId) {
+        return testimonialMatches.every((row) => row.user_id === excludeUserId);
+      }
+      return false;
+    }
+
+    return true;
+  } catch {
+    // Be permissive on error so signup is never blocked unexpectedly
+    return true;
+  }
+}
+
+/**
+ * Finds a unique variant of a base username by appending a short random suffix.
+ * Used for auto-generated names that collide.
+ */
+async function generateUniqueUsername(base: string): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const suffix = Math.random().toString(36).substring(2, 5);
+    const candidate = `${base.slice(0, 14)}_${suffix}`.slice(0, 18);
+    if (await checkUsernameAvailable(candidate)) return candidate;
+  }
+  return `${base.slice(0, 14)}_${Date.now().toString(36).slice(-3)}`.slice(0, 18);
 }
 
 let initialized = false;
@@ -165,7 +237,18 @@ export async function signUpWithEmail(
     return { error: 'Please enter a valid email address' };
   }
 
-  const cleanUsername = username?.trim() || `coder_${Math.random().toString(36).substring(2, 6)}`;
+  let cleanUsername = username?.trim() || `coder_${Math.random().toString(36).substring(2, 8)}`;
+
+  // Enforce username uniqueness — check against existing scores and testimonials
+  const available = await checkUsernameAvailable(cleanUsername);
+  if (!available) {
+    if (username?.trim()) {
+      // User explicitly chose this name — tell them it's taken
+      return { error: 'This username is already taken. Please choose another one.' };
+    }
+    // Auto-generated name collided (very unlikely) — find a unique variant
+    cleanUsername = await generateUniqueUsername(cleanUsername);
+  }
 
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -224,7 +307,10 @@ export function signInAsGuest(customUsername?: string): AuthUser {
     currentProfile.username ||
     `guest_${Math.random().toString(36).substring(2, 6)}`;
 
-  const guestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const guestId =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const guestUser: AuthUser = {
     id: `guest_${guestId}`,
     email: '',
@@ -264,6 +350,12 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
 
   const supabase = getSupabase();
   if (supabase && currentAuthState.user) {
+    // Check username uniqueness against existing scores and testimonials
+    const available = await checkUsernameAvailable(clean, currentAuthState.user.id);
+    if (!available) {
+      return { error: 'This username is already taken. Please choose another one.' };
+    }
+
     try {
       const { data, error } = await supabase.auth.updateUser({
         data: { username: clean },
