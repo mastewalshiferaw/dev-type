@@ -224,7 +224,7 @@ export function signInAsGuest(customUsername?: string): AuthUser {
     currentProfile.username ||
     `guest_${Math.random().toString(36).substring(2, 6)}`;
 
-  const guestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `guest_${Date.now()}`;
+  const guestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const guestUser: AuthUser = {
     id: `guest_${guestId}`,
     email: '',
@@ -250,7 +250,6 @@ export async function signOut(): Promise<void> {
 
 export async function updateAuthUsername(newUsername: string): Promise<{ error?: string }> {
   const clean = newUsername.trim();
-  setUsername(clean);
 
   if (currentAuthState.user?.isGuest) {
     const updatedGuest: AuthUser = {
@@ -259,6 +258,7 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
     };
     guestStore.set({ user: updatedGuest });
     updateAuthState({ user: updatedGuest });
+    setUsername(clean);
     return {};
   }
 
@@ -271,10 +271,14 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
       if (error) return { error: error.message };
       if (data.user) {
         updateAuthState({ user: formatSupabaseUser(data.user) });
+        setUsername(clean);
       }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Failed to update username' };
     }
+  } else {
+    // No Supabase configured, just update local state
+    setUsername(clean);
   }
 
   return {};
