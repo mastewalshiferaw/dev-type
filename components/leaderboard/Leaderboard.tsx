@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw, Terminal, Trophy, UserRound } from 'lucide-react';
+import { ChevronDown, RefreshCw, Terminal, Trophy, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import Avatar from '@/components/leaderboard/Avatar';
 import LeaderboardRow from '@/components/leaderboard/LeaderboardRow';
@@ -13,7 +13,12 @@ import { LANGUAGE_FILTER_OPTIONS, leaderboardLanguageLabel, type LanguageFilter 
 import { useProfile } from '@/lib/profile';
 import { useAuth } from '@/lib/auth';
 
-const LIMIT = 10;
+const LIMIT_OPTIONS = [
+  { value: '10', label: 'Top 10' },
+  { value: '25', label: 'Top 25' },
+  { value: '50', label: 'Top 50' },
+  { value: '100', label: 'Top 100' },
+];
 
 const TITLES: Record<Timeframe, { title: string; subtitle: string }> = {
   today: { title: 'Fastest Coders Today', subtitle: 'Live sprint (24h)' },
@@ -24,12 +29,13 @@ const TITLES: Record<Timeframe, { title: string; subtitle: string }> = {
 export default function Leaderboard({ onEditProfile }: { onEditProfile: () => void }) {
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
   const [language, setLanguage] = useState<LanguageFilter>('all');
+  const [limit, setLimit] = useState<number>(10);
   const { username } = useProfile();
   const { user } = useAuth();
   const { page, error, loading, retry } = useLeaderboard({
     timeframe,
     language,
-    limit: LIMIT,
+    limit,
     username: username || undefined,
     userId: user?.id,
   });
@@ -56,6 +62,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
               <span className="relative inline-flex size-1.5 rounded-full bg-success" />
             </span>
             {subtitle}
+            {page ? ` · ${page.totalCount} ${page.totalCount === 1 ? 'coder' : 'coders'}` : ''}
           </p>
         </div>
       </header>
@@ -73,6 +80,12 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
           value={language}
           options={LANGUAGE_FILTER_OPTIONS}
           onChange={setLanguage}
+        />
+        <Select
+          label="Limit"
+          value={String(limit)}
+          options={LIMIT_OPTIONS}
+          onChange={(val) => setLimit(Number(val))}
         />
       </div>
 
@@ -102,19 +115,63 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
             </button>
           </div>
         ) : page && page.entries.length > 0 ? (
-          <ol className="flex flex-col gap-1">
-            {page.entries.map((entry) => (
-              <LeaderboardRow
-                key={entry.id}
-                rank={entry.rank}
-                username={entry.username}
-                language={entry.language}
-                wpm={entry.wpm}
-                accuracy={entry.accuracy}
-                isYou={entry.id === you?.id}
-              />
-            ))}
-          </ol>
+          <>
+            <ol className="flex flex-col gap-1">
+              {page.entries.map((entry) => (
+                <LeaderboardRow
+                  key={entry.id}
+                  rank={entry.rank}
+                  username={entry.username}
+                  language={entry.language}
+                  wpm={entry.wpm}
+                  accuracy={entry.accuracy}
+                  isYou={entry.id === you?.id}
+                />
+              ))}
+            </ol>
+
+            {/* Pagination / View More Controls */}
+            {page.totalCount > page.entries.length ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
+                <p className="text-2xs text-muted">
+                  Showing <strong className="text-ink">{page.entries.length}</strong> of{' '}
+                  <strong className="text-ink">{page.totalCount}</strong> ranked coders
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLimit((prev) => Math.min(prev + 15, 100))}
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-line bg-canvas px-2.5 text-2xs font-semibold text-ink transition-ui hover:bg-raised"
+                  >
+                    Show next {Math.min(15, page.totalCount - page.entries.length)}
+                    <ChevronDown size={12} aria-hidden />
+                  </button>
+                  {page.totalCount > page.entries.length && page.totalCount <= 100 && (
+                    <button
+                      type="button"
+                      onClick={() => setLimit(100)}
+                      className="inline-flex h-7 items-center rounded-md border border-line bg-canvas px-2.5 text-2xs font-semibold text-accent transition-ui hover:bg-raised"
+                    >
+                      View all ({page.totalCount})
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : limit > 10 ? (
+              <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-3">
+                <p className="text-2xs text-muted">
+                  Showing all <strong className="text-ink">{page.entries.length}</strong> coders
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setLimit(10)}
+                  className="text-2xs text-muted underline transition-ui hover:text-ink"
+                >
+                  Collapse to Top 10
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-line-strong px-4 py-8 text-center">
             <Trophy size={20} aria-hidden className="mb-1 text-muted" />
@@ -181,7 +238,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
         </div>
         {you && !youOnBoard && (
           <p className="mt-2 text-center text-2xs text-muted">
-            You&apos;re #{you.rank}. Beat {page!.entries.at(-1)?.wpm} WPM to make the top {LIMIT}.
+            You&apos;re #{you.rank}. Beat {page!.entries.at(-1)?.wpm} WPM to make the visible top {limit}.
           </p>
         )}
       </div>
