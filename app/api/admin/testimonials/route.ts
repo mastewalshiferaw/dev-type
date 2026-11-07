@@ -119,7 +119,8 @@ export async function GET(request: Request) {
     let query = client
       .from('testimonials')
       .select('id, user_id, username, role, quote, wpm_record, status, created_at, updated_at')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (statusFilter !== 'all') {
       query = query.eq('status', statusFilter);
@@ -131,14 +132,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Also get quick status counts for admin tabs
-    const { data: countData } = await client.from('testimonials').select('status');
+    // Status counts bounded to head count
+    const [allRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
+      client.from('testimonials').select('id', { count: 'exact', head: true }),
+      client.from('testimonials').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      client.from('testimonials').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+      client.from('testimonials').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
+    ]);
 
     const counts = {
-      all: countData?.length || 0,
-      pending: countData?.filter((r) => r.status === 'pending').length || 0,
-      approved: countData?.filter((r) => r.status === 'approved').length || 0,
-      rejected: countData?.filter((r) => r.status === 'rejected').length || 0,
+      all: allRes.count ?? data?.length ?? 0,
+      pending: pendingRes.count ?? 0,
+      approved: approvedRes.count ?? 0,
+      rejected: rejectedRes.count ?? 0,
     };
 
     const testimonials = (data || []).map((row) => ({

@@ -206,6 +206,14 @@ export async function signInWithEmail(
     return { error: 'Please enter a valid email address' };
   }
 
+  if (!password || password.length < 6) {
+    return { error: 'Password must be at least 6 characters long' };
+  }
+
+  if (password.length > 72) {
+    return { error: 'Password cannot exceed 72 characters' };
+  }
+
   if (isDisposableOrFakeEmail(cleanEmail)) {
     return {
       error:
@@ -250,6 +258,14 @@ export async function signUpWithEmail(
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
     return { error: 'Please enter a valid email address' };
+  }
+
+  if (!password || password.length < 6) {
+    return { error: 'Password must be at least 6 characters long' };
+  }
+
+  if (password.length > 72) {
+    return { error: 'Password cannot exceed 72 characters' };
   }
 
   if (isDisposableOrFakeEmail(cleanEmail)) {
@@ -395,19 +411,17 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
       });
       if (error) return { error: error.message };
       if (data.user) {
-        // Also sync to public.profiles table
+        // Also sync to public.profiles table (do not expose email to public scrapers)
         try {
-          await supabase
-            .from('profiles')
-            .upsert({ id: data.user.id, username: clean, email: data.user.email });
+          await supabase.from('profiles').upsert({ id: data.user.id, username: clean });
         } catch {
           // Graceful fallback if profiles table migration not yet applied
         }
 
-        // Migrate past scores to the new username so the leaderboard stays clean
+        // Migrate past scores to the new username strictly scoped to this authenticated user
         if (oldUsername && oldUsername.toLowerCase() !== clean.toLowerCase()) {
           try {
-            await supabase.from('scores').update({ player_name: clean }).ilike('player_name', oldUsername);
+            await supabase.from('scores').update({ player_name: clean }).eq('user_id', data.user.id);
           } catch {
             // Ignore if RLS restricts score updates
           }

@@ -7,6 +7,7 @@
 -- 3. Privilege escalation via user_metadata in is_admin()
 -- 4. Identity impersonation in public.scores (spoofing other users' user_id)
 -- 5. Data corruption in public.user_logs
+-- 6. Trigger loop exhaustion in handle_new_user_profile()
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
@@ -55,6 +56,10 @@ CREATE POLICY "Allow insert scores" ON public.scores
     )
     AND (created_at IS NULL OR created_at BETWEEN (now() - interval '5 minutes') AND (now() + interval '5 minutes'))
   );
+
+-- Deny public updates & deletes to scores (scores are immutable records)
+DROP POLICY IF EXISTS "Deny public delete scores" ON public.scores;
+DROP POLICY IF EXISTS "Deny public update scores" ON public.scores;
 
 
 -- ------------------------------------------------------------------------------
@@ -108,3 +113,65 @@ ALTER TABLE public.user_logs ADD CONSTRAINT user_logs_wpm_chk CHECK (wpm >= 0 AN
 
 ALTER TABLE public.user_logs DROP CONSTRAINT IF EXISTS user_logs_acc_chk;
 ALTER TABLE public.user_logs ADD CONSTRAINT user_logs_acc_chk CHECK (accuracy >= 0 AND accuracy <= 100);
+
+
+-- ------------------------------------------------------------------------------
+-- 5. HANDLE_NEW_USER_PROFILE TRIGGER: CIRCUIT-BREAKER ON COLLISION LOOP
+-- ------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.handle_new_user_profile()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  desired_username text;
+  final_username text;
+  candidate text;
+  suffix int := 1;
+BEGIN
+  desired_username := trim(COALESCE(new.raw_user_meta_data->>'username', ''));
+  
+  IF desired_username = '' OR desired_username IS NULL THEN
+    final_username := 'coder_' || substr(new.id::text, 1, 6);
+  ELSE
+    final_username := substring(desired_username FROM 1 FOR 18);
+  END IF;
+
+  -- Ensure candidate is unique with a circuit-breaker to prevent query timeouts
+  candidate := final_username;
+  WHILE EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE lower(username) = lower(candidate)
+      AND id <> new.id
+  ) LOOP
+    suffix := suffix + 1;
+    IF suffix > 20 THEN
+      -- Circuit breaker: append random hex digits to guarantee immediate uniqueness
+      candidate := substring(final_username FROM 1 FOR 12) || '_' || substr(md5(random()::text), 1, 4);
+      EXIT;
+    END IF;
+    candidate := substring(final_username FROM 1 FOR (17 - length(suffix::text))) || '_' || suffix::text;
+  END LOOP;
+
+  -- Insert profile WITHOUT leaking email
+  INSERT INTO public.profiles (id, username, created_at)
+  VALUES (new.id, candidate, COALESCE(new.created_at, now()))
+  ON CONFLICT (id) DO UPDATE
+  SET username = excluded.username;
+
+  -- Keep user metadata in sync if a suffix was required
+  IF candidate <> desired_username THEN
+    UPDATE auth.users
+    SET raw_user_meta_data = jsonb_set(
+      COALESCE(raw_user_meta_data, '{}'::jsonb),
+      '{username}',
+      to_jsonb(candidate)
+    )
+    WHERE id = new.id;
+  END IF;
+
+  RETURN new;
+END;
+$$;
