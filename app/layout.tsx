@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import type { ReactNode } from 'react';
 import { Fira_Code, Geist_Mono, JetBrains_Mono } from 'next/font/google';
 import ThemeSync from '@/components/layout/ThemeSync';
 import { SITE } from '@/lib/site';
@@ -31,7 +32,7 @@ export const viewport: Viewport = {
   colorScheme: 'light dark',
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     // data-theme is set by the inline script before paint, so React must not fight over it
     <html
