@@ -35,14 +35,16 @@ export default function AccountView() {
     );
   }
 
-  const streak = calculateStreak(logs);
+  const validLogs = logs.filter((l) => l.wpm > 0 && l.wpm <= 350 && l.accuracy >= 0 && l.accuracy <= 100);
+
+  const streak = calculateStreak(validLogs);
 
   const { currentStreak, bestStreak, isPracticedToday, weeklyDays, totalActiveDays } = streak;
 
-  const totalRuns = logs.length;
-  const bestWpm = logs.reduce((max, l) => Math.max(max, l.wpm), 0);
-  const avgWpm = totalRuns ? Math.round(logs.reduce((sum, l) => sum + l.wpm, 0) / totalRuns) : 0;
-  const totalDurationSeconds = Math.round(logs.reduce((sum, l) => sum + l.durationMs, 0) / 1000);
+  const totalRuns = validLogs.length;
+  const bestWpm = validLogs.reduce((max, l) => Math.max(max, l.wpm), 0);
+  const avgWpm = totalRuns ? Math.round(validLogs.reduce((sum, l) => sum + l.wpm, 0) / totalRuns) : 0;
+  const totalDurationSeconds = Math.round(validLogs.reduce((sum, l) => sum + l.durationMs, 0) / 1000);
   const totalMinutes = Math.floor(totalDurationSeconds / 60);
 
   const formatRunDate = (timestamp: number) => {
@@ -284,7 +286,7 @@ export default function AccountView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {logs.slice(0, 25).map((log) => (
+                {validLogs.slice(0, 25).map((log) => (
                   <tr key={log.id} className="transition-colors hover:bg-canvas/50">
                     <td className="py-2.5 pr-3 whitespace-nowrap text-ink-dim">
                       {formatRunDate(log.createdAt)}

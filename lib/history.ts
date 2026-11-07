@@ -19,7 +19,11 @@ const isRecord = (value: unknown): value is RunRecord => {
     typeof r.id === 'string' &&
     typeof r.createdAt === 'number' &&
     typeof r.wpm === 'number' &&
+    r.wpm > 0 &&
+    r.wpm <= 350 &&
     typeof r.accuracy === 'number' &&
+    r.accuracy >= 0 &&
+    r.accuracy <= 100 &&
     typeof r.modeKey === 'string' &&
     typeof r.language === 'string'
   );
@@ -44,6 +48,9 @@ export interface RecordOutcome {
 
 /** Save a run to history and update the personal best for its language and mode. */
 export function recordRun(record: RunRecord): RecordOutcome {
+  if (record.wpm > 350 || record.wpm <= 0 || record.accuracy > 100 || record.accuracy < 0) {
+    return { isPersonalBest: false, previousBest: null };
+  }
   historyStore.set((prev) => [record, ...prev].slice(0, HISTORY_LIMIT));
   const key = bestKey(record.language, record.modeKey);
   const previousBest = bestsStore.get()[key] ?? null;

@@ -34,7 +34,11 @@ const isValidLog = (item: unknown): item is UserPracticeLog => {
     typeof log.id === 'string' &&
     typeof log.createdAt === 'number' &&
     typeof log.wpm === 'number' &&
+    log.wpm > 0 &&
+    log.wpm <= 350 &&
     typeof log.accuracy === 'number' &&
+    log.accuracy >= 0 &&
+    log.accuracy <= 100 &&
     typeof log.language === 'string' &&
     typeof log.dateKey === 'string'
   );
@@ -116,10 +120,10 @@ export function addPracticeLog(entry: {
     id: crypto.randomUUID(),
     userId: entry.userId,
     createdAt: now,
-    wpm: Math.round(entry.wpm),
-    rawWpm: Math.round(rawValue),
-    accuracy: Math.round(entry.accuracy),
-    consistency: Math.round(consistencyValue),
+    wpm: Math.min(350, Math.max(0, Math.round(entry.wpm))),
+    rawWpm: Math.min(350, Math.max(0, Math.round(rawValue))),
+    accuracy: Math.min(100, Math.max(0, Math.round(entry.accuracy))),
+    consistency: Math.min(100, Math.max(0, Math.round(consistencyValue))),
     durationMs: Math.round(entry.durationMs),
     language: entry.language,
     modeKey: entry.modeKey,

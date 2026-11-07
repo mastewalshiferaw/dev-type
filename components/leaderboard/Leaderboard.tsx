@@ -40,8 +40,22 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
     userId: user?.id,
   });
   const { title, subtitle } = TITLES[timeframe];
-  const you = page?.you ?? null;
-  const youOnBoard = !!you && page!.entries.some((entry) => entry.id === you.id);
+  // Sanitize and filter entries at UI level (DEV-002: drop any spoofed scores > 350 WPM)
+  const validEntries = (page?.entries ?? []).filter(
+    (entry) =>
+      typeof entry.wpm === 'number' &&
+      entry.wpm > 0 &&
+      entry.wpm <= 350 &&
+      typeof entry.accuracy === 'number' &&
+      entry.accuracy >= 0 &&
+      entry.accuracy <= 100
+  );
+  const you =
+    page?.you && typeof page.you.wpm === 'number' && page.you.wpm > 0 && page.you.wpm <= 350
+      ? page.you
+      : null;
+  const youOnBoard = !!you && validEntries.some((entry) => entry.id === you.id);
+  const totalCount = validEntries.length;
 
   return (
     <section
@@ -62,7 +76,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
               <span className="relative inline-flex size-1.5 rounded-full bg-success" />
             </span>
             {subtitle}
-            {page ? ` · ${page.totalCount} ${page.totalCount === 1 ? 'coder' : 'coders'}` : ''}
+            {page ? ` · ${totalCount} ${totalCount === 1 ? 'coder' : 'coders'}` : ''}
           </p>
         </div>
       </header>
@@ -114,10 +128,10 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
               Retry
             </button>
           </div>
-        ) : page && page.entries.length > 0 ? (
+        ) : validEntries.length > 0 ? (
           <>
             <ol className="flex flex-col gap-1">
-              {page.entries.map((entry) => (
+              {validEntries.map((entry) => (
                 <LeaderboardRow
                   key={entry.id}
                   rank={entry.rank}
@@ -131,11 +145,11 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
             </ol>
 
             {/* Pagination / View More Controls */}
-            {page.totalCount > page.entries.length ? (
+            {totalCount > validEntries.length ? (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
                 <p className="text-2xs text-muted">
-                  Showing <strong className="text-ink">{page.entries.length}</strong> of{' '}
-                  <strong className="text-ink">{page.totalCount}</strong> ranked coders
+                  Showing <strong className="text-ink">{validEntries.length}</strong> of{' '}
+                  <strong className="text-ink">{totalCount}</strong> ranked coders
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -143,16 +157,16 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
                     onClick={() => setLimit((prev) => Math.min(prev + 15, 100))}
                     className="inline-flex h-7 items-center gap-1 rounded-md border border-line bg-canvas px-2.5 text-2xs font-semibold text-ink transition-ui hover:bg-raised"
                   >
-                    Show next {Math.min(15, page.totalCount - page.entries.length)}
+                    Show next {Math.min(15, totalCount - validEntries.length)}
                     <ChevronDown size={12} aria-hidden />
                   </button>
-                  {page.totalCount > page.entries.length && page.totalCount <= 100 && (
+                  {totalCount > validEntries.length && totalCount <= 100 && (
                     <button
                       type="button"
                       onClick={() => setLimit(100)}
                       className="inline-flex h-7 items-center rounded-md border border-line bg-canvas px-2.5 text-2xs font-semibold text-accent transition-ui hover:bg-raised"
                     >
-                      View all ({page.totalCount})
+                      View all ({totalCount})
                     </button>
                   )}
                 </div>
@@ -160,7 +174,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
             ) : limit > 10 ? (
               <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-3">
                 <p className="text-2xs text-muted">
-                  Showing all <strong className="text-ink">{page.entries.length}</strong> coders
+                  Showing all <strong className="text-ink">{validEntries.length}</strong> coders
                 </p>
                 <button
                   type="button"

@@ -72,7 +72,7 @@ export default function TestimonialCard({ user, bestWpm, totalRuns, onOpenAuth }
     const res = await submitUserTestimonial(user.id, user.username, {
       role,
       quote,
-      wpmRecord: bestWpm > 0 ? bestWpm : undefined,
+      wpmRecord: bestWpm > 0 && bestWpm <= 350 ? bestWpm : undefined,
     });
 
     setSubmitting(false);

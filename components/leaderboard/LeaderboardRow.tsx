@@ -28,6 +28,7 @@ export default function LeaderboardRow({
     .filter((c) => c !== 'shine')
     .join(' ');
   const displayLanguage = leaderboardLanguageLabel(language);
+  const displayWpm = typeof wpm === 'number' && wpm > 350 ? '–' : wpm;
 
   return (
     <li
@@ -62,7 +63,7 @@ export default function LeaderboardRow({
       </div>
       <div className="shrink-0 text-right tabular-nums">
         <p className="text-sm font-bold text-ink">
-          {wpm}
+          {displayWpm}
           <span className="ml-1 text-2xs font-normal text-muted">WPM</span>
         </p>
         <p className="text-2xs text-muted">{accuracy}% acc</p>

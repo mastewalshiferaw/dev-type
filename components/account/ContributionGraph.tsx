@@ -32,6 +32,7 @@ export default function ContributionGraph({ logs }: Props) {
     const logMap = new Map<string, { count: number; bestWpm: number; totalWpm: number }>();
 
     logs.forEach((log) => {
+      if (log.wpm <= 0 || log.wpm > 350) return;
       const entry = logMap.get(log.dateKey) ?? { count: 0, bestWpm: 0, totalWpm: 0 };
       entry.count++;
       entry.bestWpm = Math.max(entry.bestWpm, log.wpm);
