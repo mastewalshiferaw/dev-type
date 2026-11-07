@@ -63,35 +63,58 @@ export async function checkUsernameAvailable(username: string, excludeUserId?: s
   const lower = clean.toLowerCase();
 
   try {
-    // Primary source: the scores table (public read via RLS, stores player_name)
+    // Primary authoritative source: the profiles table (contains all registered users)
+    const { data: profileRows, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .ilike('username', clean)
+      .limit(20);
+
+    if (!profileError && Array.isArray(profileRows)) {
+      const profileMatches = profileRows.filter(
+        (row: { id?: string; username?: string }) => row.username?.toLowerCase() === lower
+      );
+      if (profileMatches.length > 0) {
+        if (excludeUserId) {
+          return profileMatches.every((row: { id?: string }) => row.id === excludeUserId);
+        }
+        return false;
+      }
+    }
+
+    // Secondary source: the scores table (stores player_name, protects guest/legacy names)
     const { data: scoreRows } = await supabase
       .from('scores')
       .select('player_name, user_id')
       .ilike('player_name', clean)
       .limit(100);
 
-    const scoreMatches = (scoreRows ?? []).filter((row) => row.player_name?.toLowerCase() === lower);
+    const scoreMatches = (scoreRows ?? []).filter(
+      (row: { player_name?: string; user_id?: string }) => row.player_name?.toLowerCase() === lower
+    );
 
     if (scoreMatches.length > 0) {
       if (excludeUserId) {
         // For updates: available only if every match belongs to this user
-        return scoreMatches.every((row) => row.user_id === excludeUserId);
+        return scoreMatches.every((row: { user_id?: string }) => row.user_id === excludeUserId);
       }
       return false;
     }
 
-    // Secondary source: the testimonials table (public read of approved testimonials)
+    // Tertiary source: the testimonials table (public read of approved testimonials)
     const { data: testimonialRows } = await supabase
       .from('testimonials')
       .select('username, user_id')
       .ilike('username', clean)
       .limit(100);
 
-    const testimonialMatches = (testimonialRows ?? []).filter((row) => row.username?.toLowerCase() === lower);
+    const testimonialMatches = (testimonialRows ?? []).filter(
+      (row: { username?: string; user_id?: string }) => row.username?.toLowerCase() === lower
+    );
 
     if (testimonialMatches.length > 0) {
       if (excludeUserId) {
-        return testimonialMatches.every((row) => row.user_id === excludeUserId);
+        return testimonialMatches.every((row: { user_id?: string }) => row.user_id === excludeUserId);
       }
       return false;
     }
@@ -264,6 +287,14 @@ export async function signUpWithEmail(
     if (error) {
       const msg = error.message.toLowerCase();
       if (
+        msg.includes('profiles_username_lower_idx') ||
+        msg.includes('unique constraint') ||
+        msg.includes('duplicate key') ||
+        msg.includes('username is already taken')
+      ) {
+        return { error: 'This username is already taken. Please choose another one.' };
+      }
+      if (
         msg.includes('already registered') ||
         msg.includes('already in use') ||
         msg.includes('already exists') ||
@@ -362,6 +393,12 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
       });
       if (error) return { error: error.message };
       if (data.user) {
+        // Also sync to public.profiles table
+        try {
+          await supabase.from('profiles').upsert({ id: data.user.id, username: clean });
+        } catch {
+          // Graceful fallback if profiles table migration not yet applied
+        }
         updateAuthState({ user: formatSupabaseUser(data.user) });
         setUsername(clean);
       }
