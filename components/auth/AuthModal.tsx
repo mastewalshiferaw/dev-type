@@ -3,7 +3,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { Check, Flame, Loader2, Lock, Mail, MailCheck, User, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { signInAsGuest, signInWithEmail, signUpWithEmail } from '@/lib/auth';
+import { isDisposableOrFakeEmail, signInAsGuest, signInWithEmail, signUpWithEmail } from '@/lib/auth';
 import { USERNAME_HINT, USERNAME_PATTERN } from '@/lib/profile';
 
 interface Props {
@@ -49,13 +49,19 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
       return;
     }
 
+    if (mode === 'signup' && isDisposableOrFakeEmail(email.trim())) {
+      setError('Please enter a real email, or choose Continue as Guest below if you do not want to use an email.');
+      return;
+    }
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
 
-    if (mode === 'signup' && username) {
-      if (!USERNAME_PATTERN.test(username.trim())) {
+    const cleanUsername = username ? username.trim().replace(/\s+/g, '_') : '';
+    if (mode === 'signup' && cleanUsername) {
+      if (!USERNAME_PATTERN.test(cleanUsername)) {
         setError(USERNAME_HINT);
         return;
       }
@@ -72,7 +78,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
           onOpenChange(false);
         }
       } else {
-        const res = await signUpWithEmail(email, password, username);
+        const res = await signUpWithEmail(email, password, cleanUsername || undefined);
         if (res.error) {
           setError(res.error);
         } else if (res.needsConfirmation) {
@@ -226,7 +232,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                     className="text-2xs font-semibold tracking-wider text-muted uppercase"
                     htmlFor="auth-email"
                   >
-                    Email
+                    Email {mode === 'signup' && <span className="font-normal normal-case text-muted">(for device sync)</span>}
                   </label>
                   <div className="relative">
                     <Mail size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
@@ -277,7 +283,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
 
               <div className="mt-4 flex items-center gap-2">
                 <span className="h-px flex-1 bg-line" />
-                <span className="text-2xs text-muted uppercase">or</span>
+                <span className="text-2xs uppercase text-muted">or</span>
                 <span className="h-px flex-1 bg-line" />
               </div>
 
@@ -286,8 +292,12 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                 onClick={handleGuest}
                 className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
               >
-                Continue as Guest
+                Continue as Guest (No email required)
               </button>
+
+              <p className="mt-3 text-center text-2xs text-muted">
+                Guest mode saves runs locally and lets you compete on the leaderboard freely.
+              </p>
             </>
           )}
         </Dialog.Content>

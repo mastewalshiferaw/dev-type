@@ -5,7 +5,7 @@ export interface Profile {
 }
 
 export const USERNAME_PATTERN = /^[\w.@-]{2,18}$/;
-export const USERNAME_HINT = '2–18 characters: letters, numbers, _ . - @';
+export const USERNAME_HINT = '2–18 characters: letters, numbers, _, -, . (spaces become _)';
 
 export const profileStore = createLocalStore<Profile>('devtype:profile', { username: '' }, (raw) => {
   const username = (raw as Profile | null)?.username;
@@ -17,5 +17,6 @@ export function useProfile(): Profile {
 }
 
 export function setUsername(username: string) {
-  profileStore.set({ username: username.trim() });
+  const clean = username.trim().replace(/\s+/g, '_');
+  profileStore.set({ username: clean });
 }

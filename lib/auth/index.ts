@@ -57,13 +57,13 @@ export async function checkUsernameAvailable(username: string, excludeUserId?: s
   const supabase = getSupabase();
   if (!supabase) return true;
 
-  const clean = username.trim();
+  const clean = username.trim().replace(/\s+/g, '_');
   if (!clean || !USERNAME_PATTERN.test(clean)) return false;
 
   const lower = clean.toLowerCase();
 
   try {
-    // Primary authoritative source: the profiles table (contains all registered users)
+    // Primary authoritative source: the profiles table (contains all registered accounts)
     const { data: profileRows, error: profileError } = await supabase
       .from('profiles')
       .select('id, username')
@@ -80,43 +80,6 @@ export async function checkUsernameAvailable(username: string, excludeUserId?: s
         }
         return false;
       }
-    }
-
-    // Secondary source: the scores table (stores player_name, protects guest/legacy names)
-    const { data: scoreRows } = await supabase
-      .from('scores')
-      .select('player_name, user_id')
-      .ilike('player_name', clean)
-      .limit(100);
-
-    const scoreMatches = (scoreRows ?? []).filter(
-      (row: { player_name?: string; user_id?: string }) => row.player_name?.toLowerCase() === lower
-    );
-
-    if (scoreMatches.length > 0) {
-      if (excludeUserId) {
-        // For updates: available only if every match belongs to this user
-        return scoreMatches.every((row: { user_id?: string }) => row.user_id === excludeUserId);
-      }
-      return false;
-    }
-
-    // Tertiary source: the testimonials table (public read of approved testimonials)
-    const { data: testimonialRows } = await supabase
-      .from('testimonials')
-      .select('username, user_id')
-      .ilike('username', clean)
-      .limit(100);
-
-    const testimonialMatches = (testimonialRows ?? []).filter(
-      (row: { username?: string; user_id?: string }) => row.username?.toLowerCase() === lower
-    );
-
-    if (testimonialMatches.length > 0) {
-      if (excludeUserId) {
-        return testimonialMatches.every((row: { user_id?: string }) => row.user_id === excludeUserId);
-      }
-      return false;
     }
 
     return true;
@@ -207,6 +170,28 @@ export function initAuth() {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const BLOCKED_OR_FAKE_DOMAINS = new Set([
+  'email.com',
+  'test.com',
+  'fake.com',
+  'example.com',
+  'mailinator.com',
+  'tempmail.com',
+  '10minutemail.com',
+  'guerrillamail.com',
+  'trashmail.com',
+  'dispostable.com',
+  'sharklasers.com',
+  'yopmail.com',
+]);
+
+export function isDisposableOrFakeEmail(email: string): boolean {
+  const parts = email.toLowerCase().split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1].trim();
+  return BLOCKED_OR_FAKE_DOMAINS.has(domain);
+}
+
 export async function signInWithEmail(
   email: string,
   password: string
@@ -219,6 +204,12 @@ export async function signInWithEmail(
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
     return { error: 'Please enter a valid email address' };
+  }
+
+  if (isDisposableOrFakeEmail(cleanEmail)) {
+    return {
+      error: 'Please enter a real email address, or choose Continue as Guest below if you do not wish to use an email.',
+    };
   }
 
   try {
@@ -260,16 +251,20 @@ export async function signUpWithEmail(
     return { error: 'Please enter a valid email address' };
   }
 
-  let cleanUsername = username?.trim() || `coder_${Math.random().toString(36).substring(2, 8)}`;
+  if (isDisposableOrFakeEmail(cleanEmail)) {
+    return {
+      error: 'Please enter a real email address, or choose Continue as Guest below if you do not wish to use an email.',
+    };
+  }
 
-  // Enforce username uniqueness — check against existing scores and testimonials
+  let cleanUsername = (username?.trim() || '').replace(/\s+/g, '_') || `coder_${Math.random().toString(36).substring(2, 8)}`;
+
+  // Enforce username uniqueness — check against profiles
   const available = await checkUsernameAvailable(cleanUsername);
   if (!available) {
     if (username?.trim()) {
-      // User explicitly chose this name — tell them it's taken
       return { error: 'This username is already taken. Please choose another one.' };
     }
-    // Auto-generated name collided (very unlikely) — find a unique variant
     cleanUsername = await generateUniqueUsername(cleanUsername);
   }
 
@@ -366,12 +361,12 @@ export async function signOut(): Promise<void> {
 }
 
 export async function updateAuthUsername(newUsername: string): Promise<{ error?: string }> {
-  const clean = newUsername.trim();
+  const clean = newUsername.trim().replace(/\s+/g, '_');
   if (!clean || !USERNAME_PATTERN.test(clean)) {
     return { error: USERNAME_HINT };
   }
 
-  // Check username uniqueness for all users (including guests) against profiles, scores, and testimonials
+  // Check username uniqueness against profiles
   const available = await checkUsernameAvailable(clean, currentAuthState.user?.id);
   if (!available) {
     return { error: 'This username is already taken. Please choose another one.' };
@@ -391,6 +386,7 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
   const supabase = getSupabase();
   if (supabase && currentAuthState.user) {
     try {
+      const oldUsername = currentAuthState.user.username;
       const { data, error } = await supabase.auth.updateUser({
         data: { username: clean },
       });
@@ -398,10 +394,20 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
       if (data.user) {
         // Also sync to public.profiles table
         try {
-          await supabase.from('profiles').upsert({ id: data.user.id, username: clean });
+          await supabase.from('profiles').upsert({ id: data.user.id, username: clean, email: data.user.email });
         } catch {
           // Graceful fallback if profiles table migration not yet applied
         }
+
+        // Migrate past scores to the new username so the leaderboard stays clean
+        if (oldUsername && oldUsername.toLowerCase() !== clean.toLowerCase()) {
+          try {
+            await supabase.from('scores').update({ player_name: clean }).ilike('player_name', oldUsername);
+          } catch {
+            // Ignore if RLS restricts score updates
+          }
+        }
+
         updateAuthState({ user: formatSupabaseUser(data.user) });
         setUsername(clean);
       }

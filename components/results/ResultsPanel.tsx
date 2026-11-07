@@ -87,7 +87,8 @@ function SubmitScore({ record }: { record: RunRecord }) {
   const submit = useCallback(
     async (event?: FormEvent) => {
       event?.preventDefault();
-      const name = effectiveUsername || draft.trim();
+      const rawName = effectiveUsername || draft;
+      const name = rawName.trim().replace(/\s+/g, '_');
       if (!USERNAME_PATTERN.test(name)) {
         setState({ status: 'error', message: USERNAME_HINT });
         return;

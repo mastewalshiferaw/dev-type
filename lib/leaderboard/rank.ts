@@ -24,10 +24,10 @@ export function rankEntries(
     if (Date.parse(entry.createdAt) < since) continue;
     if (query.language !== 'all' && entry.language !== query.language) continue;
 
-    // Deduplicate by player identity:
+    // Deduplicate strictly by normalized username:
     // Every player gets ONE single entry representing their personal best score in this window.
-    // If authenticated with a userId, key by userId. Otherwise, key by normalized username.
-    const key = entry.userId ? `uid:${entry.userId}` : `name:${entry.username.trim().toLowerCase()}`;
+    // Keying by username guarantees that identical names can NEVER appear multiple times on the leaderboard.
+    const key = entry.username.trim().toLowerCase();
     const current = best.get(key);
     if (
       !current ||
@@ -49,10 +49,9 @@ export function rankEntries(
   const username = query.username?.trim().toLowerCase();
   const userId = query.userId;
   // Identity matching for "you":
-  // 1. Authenticated users match strictly by userId only (no username fallback to prevent showing other users' stats).
-  // 2. Unauthenticated guests match by username.
+  // Match by userId if available, or fall back to matching by username.
   const you = userId
-    ? (ranked.find((e) => e.userId === userId) ?? null)
+    ? (ranked.find((e) => (e.userId && e.userId === userId) || (username && e.username.trim().toLowerCase() === username)) ?? null)
     : username
       ? (ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null)
       : null;

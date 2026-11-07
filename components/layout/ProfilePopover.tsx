@@ -27,7 +27,8 @@ function UsernameForm() {
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    const clean = draft.trim();
+    const clean = draft.trim().replace(/\s+/g, '_');
+    setDraft(clean);
     if (!USERNAME_PATTERN.test(clean)) {
       setErrorMessage(USERNAME_HINT);
       setStatus('invalid');
