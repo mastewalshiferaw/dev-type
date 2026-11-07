@@ -5,10 +5,14 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text not null,
+  email text,
   created_at timestamptz default now() not null,
   constraint username_len_chk check (char_length(username) between 2 and 18),
   constraint username_char_chk check (username ~ '^[\w.@-]{2,18}$')
 );
+
+-- Ensure email column exists if the table already existed from a previous run
+alter table public.profiles add column if not exists email text;
 
 -- Drop any previous conflicting index attempt
 drop index if exists public.profiles_username_lower_idx;
@@ -20,6 +24,7 @@ with ranked_users as (
   select
     id,
     coalesce(nullif(trim(raw_user_meta_data->>'username'), ''), 'coder_' || substr(id::text, 1, 6)) as base_name,
+    email,
     created_at,
     row_number() over (
       partition by lower(coalesce(nullif(trim(raw_user_meta_data->>'username'), ''), 'coder_' || substr(id::text, 1, 6)))
@@ -34,14 +39,16 @@ deduped as (
       when rn = 1 then substring(base_name from 1 for 18)
       else substring(base_name from 1 for (17 - length(rn::text))) || '_' || rn::text
     end as unique_username,
+    email,
     created_at
   from ranked_users
 )
-insert into public.profiles (id, username, created_at)
-select id, unique_username, coalesce(created_at, now())
+insert into public.profiles (id, username, email, created_at)
+select id, unique_username, email, coalesce(created_at, now())
 from deduped
 on conflict (id) do update
-set username = excluded.username;
+set username = excluded.username,
+    email = excluded.email;
 
 -- 3. SYNC RESOLVED NAMES BACK TO auth.users METADATA
 update auth.users u
@@ -90,10 +97,11 @@ begin
     candidate := substring(final_username from 1 for (17 - length(suffix::text))) || '_' || suffix::text;
   end loop;
 
-  insert into public.profiles (id, username, created_at)
-  values (new.id, candidate, coalesce(new.created_at, now()))
+  insert into public.profiles (id, username, email, created_at)
+  values (new.id, candidate, new.email, coalesce(new.created_at, now()))
   on conflict (id) do update
-  set username = excluded.username;
+  set username = excluded.username,
+      email = excluded.email;
 
   -- Keep user metadata in sync if a suffix was required
   if candidate <> desired_username then
