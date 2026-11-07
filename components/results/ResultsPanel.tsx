@@ -94,6 +94,15 @@ function SubmitScore({ record }: { record: RunRecord }) {
         return;
       }
 
+      // Reject physically impossible / spoofed scores
+      if (record.wpm > 350 || record.wpm <= 0 || record.accuracy > 100 || record.accuracy < 0) {
+        setState({
+          status: 'error',
+          message: 'Score is outside valid human limits and cannot be submitted.',
+        });
+        return;
+      }
+
       // Check if this record was already submitted
       const SUBMITTED_KEY = 'devtype:submitted_scores';
       try {

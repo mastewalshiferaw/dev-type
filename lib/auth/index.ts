@@ -208,7 +208,8 @@ export async function signInWithEmail(
 
   if (isDisposableOrFakeEmail(cleanEmail)) {
     return {
-      error: 'Please enter a real email address, or choose Continue as Guest below if you do not wish to use an email.',
+      error:
+        'Please enter a real email address, or choose Continue as Guest below if you do not wish to use an email.',
     };
   }
 
@@ -253,11 +254,13 @@ export async function signUpWithEmail(
 
   if (isDisposableOrFakeEmail(cleanEmail)) {
     return {
-      error: 'Please enter a real email address, or choose Continue as Guest below if you do not wish to use an email.',
+      error:
+        'Please enter a real email address, or choose Continue as Guest below if you do not wish to use an email.',
     };
   }
 
-  let cleanUsername = (username?.trim() || '').replace(/\s+/g, '_') || `coder_${Math.random().toString(36).substring(2, 8)}`;
+  let cleanUsername =
+    (username?.trim() || '').replace(/\s+/g, '_') || `coder_${Math.random().toString(36).substring(2, 8)}`;
 
   // Enforce username uniqueness — check against profiles
   const available = await checkUsernameAvailable(cleanUsername);
@@ -394,7 +397,9 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
       if (data.user) {
         // Also sync to public.profiles table
         try {
-          await supabase.from('profiles').upsert({ id: data.user.id, username: clean, email: data.user.email });
+          await supabase
+            .from('profiles')
+            .upsert({ id: data.user.id, username: clean, email: data.user.email });
         } catch {
           // Graceful fallback if profiles table migration not yet applied
         }

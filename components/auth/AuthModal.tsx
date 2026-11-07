@@ -50,7 +50,9 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
     }
 
     if (mode === 'signup' && isDisposableOrFakeEmail(email.trim())) {
-      setError('Please enter a real email, or choose Continue as Guest below if you do not want to use an email.');
+      setError(
+        'Please enter a real email, or choose Continue as Guest below if you do not want to use an email.'
+      );
       return;
     }
 
@@ -232,7 +234,10 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                     className="text-2xs font-semibold tracking-wider text-muted uppercase"
                     htmlFor="auth-email"
                   >
-                    Email {mode === 'signup' && <span className="font-normal normal-case text-muted">(for device sync)</span>}
+                    Email{' '}
+                    {mode === 'signup' && (
+                      <span className="font-normal text-muted normal-case">(for device sync)</span>
+                    )}
                   </label>
                   <div className="relative">
                     <Mail size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
@@ -283,7 +288,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
 
               <div className="mt-4 flex items-center gap-2">
                 <span className="h-px flex-1 bg-line" />
-                <span className="text-2xs uppercase text-muted">or</span>
+                <span className="text-2xs text-muted uppercase">or</span>
                 <span className="h-px flex-1 bg-line" />
               </div>
 

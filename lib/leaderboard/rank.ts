@@ -21,6 +21,10 @@ export function rankEntries(
   const best = new Map<string, LeaderboardEntry>();
 
   for (const entry of entries) {
+    // Discard physically impossible or spoofed scores (DEV-002)
+    if (entry.wpm > 350 || entry.wpm <= 0 || entry.accuracy > 100 || entry.accuracy < 0) {
+      continue;
+    }
     if (Date.parse(entry.createdAt) < since) continue;
     if (query.language !== 'all' && entry.language !== query.language) continue;
 
@@ -51,7 +55,9 @@ export function rankEntries(
   // Identity matching for "you":
   // Match by userId if available, or fall back to matching by username.
   const you = userId
-    ? (ranked.find((e) => (e.userId && e.userId === userId) || (username && e.username.trim().toLowerCase() === username)) ?? null)
+    ? (ranked.find(
+        (e) => (e.userId && e.userId === userId) || (username && e.username.trim().toLowerCase() === username)
+      ) ?? null)
     : username
       ? (ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null)
       : null;

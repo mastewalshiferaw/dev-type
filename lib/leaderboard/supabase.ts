@@ -58,6 +58,10 @@ export const supabaseProvider: LeaderboardProvider = {
 
         let filtered = req
           .gte('created_at', new Date(timeframeStart(query.timeframe, now)).toISOString())
+          .lte('wpm', 350)
+          .gt('wpm', 0)
+          .lte('accuracy', 100)
+          .gte('accuracy', 0)
           .order('wpm', { ascending: false })
           .limit(FETCH_LIMIT);
 
@@ -104,9 +108,13 @@ export const supabaseProvider: LeaderboardProvider = {
     const userId = isUuid ? rawUserId : null;
 
     // Sanitize and enforce constraints (DEV-002)
-    const cleanWpm = Math.min(400, Math.max(0, Math.round(score.wpm)));
+    const MAX_WPM = 350;
+    if (score.wpm > MAX_WPM || score.wpm <= 0 || score.accuracy > 100 || score.accuracy < 0) {
+      throw new Error('Score rejected: stats are outside valid human limits.');
+    }
+    const cleanWpm = Math.min(MAX_WPM, Math.max(1, Math.round(score.wpm)));
     const cleanAccuracy = Math.min(100, Math.max(0, Number(score.accuracy.toFixed(2))));
-    const cleanName = score.username.trim().slice(0, 18);
+    const cleanName = score.username.trim().slice(0, 24);
     const cleanLang = (score.language || 'mixed').toLowerCase();
     const cleanMode = (score.modeKey || 'time-30').slice(0, 30);
 
