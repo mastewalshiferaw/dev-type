@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
-import { profileStore, setUsername, USERNAME_PATTERN } from '@/lib/profile';
+import { profileStore, setUsername, USERNAME_PATTERN, USERNAME_HINT } from '@/lib/profile';
 import { createLocalStore } from '@/lib/store';
 import type { AuthState, AuthUser } from './types';
 
@@ -367,6 +367,15 @@ export async function signOut(): Promise<void> {
 
 export async function updateAuthUsername(newUsername: string): Promise<{ error?: string }> {
   const clean = newUsername.trim();
+  if (!clean || !USERNAME_PATTERN.test(clean)) {
+    return { error: USERNAME_HINT };
+  }
+
+  // Check username uniqueness for all users (including guests) against profiles, scores, and testimonials
+  const available = await checkUsernameAvailable(clean, currentAuthState.user?.id);
+  if (!available) {
+    return { error: 'This username is already taken. Please choose another one.' };
+  }
 
   if (currentAuthState.user?.isGuest) {
     const updatedGuest: AuthUser = {
@@ -381,12 +390,6 @@ export async function updateAuthUsername(newUsername: string): Promise<{ error?:
 
   const supabase = getSupabase();
   if (supabase && currentAuthState.user) {
-    // Check username uniqueness against existing scores and testimonials
-    const available = await checkUsernameAvailable(clean, currentAuthState.user.id);
-    if (!available) {
-      return { error: 'This username is already taken. Please choose another one.' };
-    }
-
     try {
       const { data, error } = await supabase.auth.updateUser({
         data: { username: clean },
