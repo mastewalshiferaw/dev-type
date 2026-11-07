@@ -15,6 +15,25 @@ echo implode(', ', $names);`,
     }
     return json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
 }`,
+    `final readonly class UserDto {
+    public function __construct(
+        public string $id,
+        public string $email,
+        public int $wpm = 0,
+        public bool $verified = false,
+    ) {}
+}`,
+    `$formatted = array_map(
+    fn(array $row): array => [
+        'id' => (int) $row['id'],
+        'title' => htmlspecialchars($row['title'], ENT_QUOTES, 'UTF-8'),
+    ],
+    $databaseRows
+);`,
+    `function getHeader(array $headers, string $name, ?string $default = null): ?string {
+    $normalized = strtolower($name);
+    return $headers[$normalized] ?? $default;
+}`,
   ],
   medium: [
     `function findUser(PDO $db, int $id): ?array {
@@ -56,6 +75,43 @@ function updateUserStatus(PDO $db, int $id, string $status): bool {
         'data' => $payload,
     ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     exit;
+}`,
+    `final readonly class PaginationResult {
+    public int $totalPages;
+
+    public function __construct(
+        public array $items,
+        public int $totalItems,
+        public int $currentPage,
+        public int $perPage = 20
+    ) {
+        $this->totalPages = (int) ceil($this->totalItems / max(1, $this->perPage));
+    }
+
+    public function hasNext(): bool {
+        return $this->currentPage < $this->totalPages;
+    }
+}`,
+    `function retryOperation(callable $operation, int $maxAttempts = 3, int $delayMs = 200): mixed {
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        try {
+            return $operation();
+        } catch (Throwable $e) {
+            if ($attempt === $maxAttempts) {
+                throw $e;
+            }
+            usleep($delayMs * 1000 * $attempt);
+        }
+    }
+    throw new RuntimeException('Retry execution failed');
+}`,
+    `function generateCsrfToken(): string {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    $token = bin2hex(random_bytes(32));
+    $_SESSION['_csrf_token'] = $token;
+    return $token;
 }`,
   ],
   long: [
@@ -156,6 +212,64 @@ function updateUserStatus(PDO $db, int $id, string $status): bool {
 
     public function resetAttempts(string $key): void {
         $this->redis->del($key);
+    }
+}`,
+    `final class EventDispatcher {
+    /** @var array<string, list<callable>> */
+    private array $listeners = [];
+
+    public function subscribe(string $eventName, callable $listener): void {
+        $this->listeners[$eventName][] = $listener;
+    }
+
+    public function dispatch(object $event): object {
+        $eventName = $event::class;
+        if (!isset($this->listeners[$eventName])) {
+            return $event;
+        }
+
+        foreach ($this->listeners[$eventName] as $listener) {
+            $listener($event);
+        }
+
+        return $event;
+    }
+}`,
+    `final class DatabaseTransactionManager {
+    public function __construct(private readonly PDO $pdo) {}
+
+    public function transactional(callable $callback): mixed {
+        $this->pdo->beginTransaction();
+        try {
+            $result = $callback($this->pdo);
+            $this->pdo->commit();
+            return $result;
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+}`,
+    `final class SimpleRouter {
+    private array $routes = [];
+
+    public function get(string $path, callable $handler): void {
+        $this->routes['GET'][$path] = $handler;
+    }
+
+    public function post(string $path, callable $handler): void {
+        $this->routes['POST'][$path] = $handler;
+    }
+
+    public function dispatch(string $method, string $uri): mixed {
+        $handler = $this->routes[$method][$uri] ?? null;
+        if (!$handler) {
+            http_response_code(404);
+            return 'Not Found';
+        }
+        return $handler();
     }
 }`,
   ],
