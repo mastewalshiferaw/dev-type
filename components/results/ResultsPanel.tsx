@@ -13,7 +13,7 @@ import type { RunRecord } from '@/lib/history';
 import { usePracticeLogs } from '@/lib/logs';
 import { calculateStreak } from '@/lib/streak';
 import { languageLabel } from '@/lib/languages';
-import { useAuth } from '@/lib/auth';
+import { useAuth, checkUsernameAvailable } from '@/lib/auth';
 import { setUsername, USERNAME_HINT, USERNAME_PATTERN, useProfile } from '@/lib/profile';
 import { modeKeyLabel } from '@/lib/settings';
 
@@ -102,8 +102,24 @@ function SubmitScore({ record }: { record: RunRecord }) {
         // If localStorage fails, continue with submission
       }
 
-      if (!username) setUsername(name);
       setState({ status: 'sending' });
+
+      // Verify username availability before taking/submitting under a new name
+      if (!username) {
+        try {
+          const available = await checkUsernameAvailable(name, user?.id);
+          if (!available) {
+            setState({
+              status: 'error',
+              message: 'This username is already taken. Please choose another one.',
+            });
+            return;
+          }
+        } catch {
+          // If network fails, continue gracefully
+        }
+        setUsername(name);
+      }
       try {
         await submitScore({
           userId: user && !user.isGuest ? user.id : undefined,
