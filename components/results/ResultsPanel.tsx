@@ -81,10 +81,13 @@ function SubmitScore({ record }: { record: RunRecord }) {
   const [state, setState] = useState<SubmitState>({ status: 'idle' });
   const autoSubmittedRef = useRef(false);
 
+  // Authenticated user's account name takes precedence over local guest profile
+  const effectiveUsername = (user && !user.isGuest ? user.username : null) || username;
+
   const submit = useCallback(
     async (event?: FormEvent) => {
       event?.preventDefault();
-      const name = username || draft.trim();
+      const name = effectiveUsername || draft.trim();
       if (!USERNAME_PATTERN.test(name)) {
         setState({ status: 'error', message: USERNAME_HINT });
         return;
@@ -104,8 +107,8 @@ function SubmitScore({ record }: { record: RunRecord }) {
 
       setState({ status: 'sending' });
 
-      // Verify username availability before taking/submitting under a new name
-      if (!username) {
+      // Verify username availability before taking/submitting under a new name (for guests without a set name)
+      if (!effectiveUsername) {
         try {
           const available = await checkUsernameAvailable(name, user?.id);
           if (!available) {
@@ -152,15 +155,15 @@ function SubmitScore({ record }: { record: RunRecord }) {
         });
       }
     },
-    [username, draft, record, user]
+    [effectiveUsername, draft, record, user]
   );
 
   useEffect(() => {
-    if (username && state.status === 'idle' && !autoSubmittedRef.current) {
+    if (effectiveUsername && state.status === 'idle' && !autoSubmittedRef.current) {
       autoSubmittedRef.current = true;
       submit();
     }
-  }, [username, state.status, submit]);
+  }, [effectiveUsername, state.status, submit]);
 
   if (state.status === 'done') {
     return (
@@ -173,7 +176,7 @@ function SubmitScore({ record }: { record: RunRecord }) {
 
   return (
     <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
-      {!username && (
+      {!effectiveUsername && (
         <>
           <label htmlFor="submit-username" className="sr-only">
             Username
