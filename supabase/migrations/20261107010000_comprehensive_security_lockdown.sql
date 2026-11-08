@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at timestamptz DEFAULT now() NOT NULL
 );
 
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
 -- Safely null out existing emails if the email column exists in profiles
 DO $$
 BEGIN
@@ -93,6 +95,19 @@ END $$;
 DROP POLICY IF EXISTS "Allow public read access to profiles" ON public.profiles;
 CREATE POLICY "Allow public read access to profiles" ON public.profiles
   FOR SELECT USING (true);
+
+-- Authenticated users can update only their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles
+  FOR UPDATE TO authenticated
+  USING ((SELECT auth.uid()) = id)
+  WITH CHECK ((SELECT auth.uid()) = id);
+
+-- Authenticated users can insert their own profile
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile" ON public.profiles
+  FOR INSERT TO authenticated
+  WITH CHECK ((SELECT auth.uid()) = id);
 
 
 -- ------------------------------------------------------------------------------
