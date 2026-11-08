@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
-import { profileStore, setUsername, USERNAME_PATTERN, USERNAME_HINT } from '@/lib/profile';
+import { profileStore, setUsername, setProfileData, USERNAME_PATTERN, USERNAME_HINT } from '@/lib/profile';
 import { createLocalStore } from '@/lib/store';
+import { refreshLeaderboard } from '@/hooks/useLeaderboard';
 import type { AuthState, AuthUser } from './types';
 
 const GUEST_KEY = 'devtype:guest_user';
@@ -15,16 +16,48 @@ const guestStore = createLocalStore<GuestStoreData>(GUEST_KEY, { user: null }, (
   raw && typeof raw === 'object' && 'user' in raw ? (raw as GuestStoreData) : { user: null }
 );
 
-function formatSupabaseUser(user: User): AuthUser {
-  const username = (user.user_metadata?.username as string | undefined) || `coder_${user.id.substring(0, 4)}`;
+export interface ProfileData {
+  username?: string;
+  avatarUrl?: string;
+  telegram?: string;
+}
+
+export function formatSupabaseUser(user: User, profileData?: ProfileData): AuthUser {
+  const username = profileData?.username || (user.user_metadata?.username as string | undefined) || `coder_${user.id.substring(0, 4)}`;
 
   return {
     id: user.id,
     email: user.email ?? '',
     username,
+    avatarUrl: profileData?.avatarUrl || (user.user_metadata?.avatar_url as string | undefined) || undefined,
+    telegram: profileData?.telegram || (user.user_metadata?.telegram as string | undefined) || undefined,
     createdAt: user.created_at,
     isGuest: false,
   };
+}
+
+export async function fetchProfileData(userId: string): Promise<ProfileData | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('username, avatar_url, telegram')
+      .eq('id', userId)
+      .maybeSingle();
+    return {
+      username: data?.username || undefined,
+      avatarUrl: data?.avatar_url || undefined,
+      telegram: data?.telegram || undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function syncAuthUser(user: User): Promise<AuthUser> {
+  const profileData = await fetchProfileData(user.id);
+  return formatSupabaseUser(user, profileData || undefined);
 }
 
 let authListeners: Array<() => void> = [];
@@ -61,31 +94,89 @@ export async function checkUsernameAvailable(username: string, excludeUserId?: s
   if (!clean || !USERNAME_PATTERN.test(clean)) return false;
 
   const lower = clean.toLowerCase();
+  const isUuid = excludeUserId
+    ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(excludeUserId)
+    : false;
+  const validExcludeId = isUuid ? excludeUserId : null;
 
   try {
-    // Primary authoritative source: the profiles table (contains all registered accounts)
+    // 0. Primary authoritative check via PostgreSQL RPC function
+    try {
+      const { data: rpcAvailable, error: rpcError } = await supabase.rpc('check_username_available', {
+        candidate_username: clean,
+        exclude_user_id: validExcludeId,
+      });
+      if (!rpcError && typeof rpcAvailable === 'boolean') {
+        return rpcAvailable;
+      }
+    } catch {
+      // Fall through to direct table checks if RPC is not yet installed
+    }
+
+    // 1. Check profiles table for identical or similar names (case-insensitive exact match)
     const { data: profileRows, error: profileError } = await supabase
       .from('profiles')
       .select('id, username')
       .ilike('username', clean)
-      .limit(20);
+      .limit(25);
 
     if (!profileError && Array.isArray(profileRows)) {
       const profileMatches = profileRows.filter(
-        (row: { id?: string; username?: string }) => row.username?.toLowerCase() === lower
+        (row: { id?: string; username?: string }) => row.username?.trim().toLowerCase() === lower
       );
       if (profileMatches.length > 0) {
-        if (excludeUserId) {
-          return profileMatches.every((row: { id?: string }) => row.id === excludeUserId);
+        if (validExcludeId) {
+          const isOwn = profileMatches.every((row: { id?: string }) => row.id === validExcludeId);
+          if (!isOwn) return false;
+        } else {
+          return false;
         }
-        return false;
+      }
+    }
+
+    // 2. Check scores table for identical names (even from guest runs or older records)
+    let scoreRows: Array<{ id?: string | number; user_id?: string | null; player_name?: string }> | null = null;
+    const { data: scoresWithUser, error: scoreErr } = await supabase
+      .from('scores')
+      .select('id, user_id, player_name')
+      .ilike('player_name', clean)
+      .limit(25);
+
+    if (!scoreErr && Array.isArray(scoresWithUser)) {
+      scoreRows = scoresWithUser;
+    } else {
+      // Fallback if user_id column is not in PostgREST cache
+      const { data: scoresSimple } = await supabase
+        .from('scores')
+        .select('id, player_name')
+        .ilike('player_name', clean)
+        .limit(25);
+      if (Array.isArray(scoresSimple)) {
+        scoreRows = scoresSimple;
+      }
+    }
+
+    if (Array.isArray(scoreRows)) {
+      const scoreMatches = scoreRows.filter(
+        (row) => row.player_name?.trim().toLowerCase() === lower
+      );
+      if (scoreMatches.length > 0) {
+        if (validExcludeId) {
+          const isOwn = scoreMatches.every(
+            (row) => row.user_id && row.user_id === validExcludeId
+          );
+          if (!isOwn) return false;
+        } else {
+          return false;
+        }
       }
     }
 
     return true;
-  } catch {
-    // Be permissive on error so signup is never blocked unexpectedly
-    return true;
+  } catch (err) {
+    console.error('checkUsernameAvailable error:', err);
+    // Fail closed to prevent accidental collisions if query fails
+    return false;
   }
 }
 
@@ -135,26 +226,28 @@ export function initAuth() {
         setUsername(guest.username);
       }
     } else {
-      const authUser = formatSupabaseUser(session.user);
-      updateAuthState({
-        user: authUser,
-        isLoading: false,
-        isConfigured: true,
+      syncAuthUser(session.user).then((authUser) => {
+        updateAuthState({
+          user: authUser,
+          isLoading: false,
+          isConfigured: true,
+        });
+        setUsername(authUser.username);
       });
-      setUsername(authUser.username);
     }
   });
 
   // Listen to Supabase auth events
   supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) {
-      const authUser = formatSupabaseUser(session.user);
-      guestStore.set({ user: null });
-      updateAuthState({
-        user: authUser,
-        isLoading: false,
+      syncAuthUser(session.user).then((authUser) => {
+        guestStore.set({ user: null });
+        updateAuthState({
+          user: authUser,
+          isLoading: false,
+        });
+        setUsername(authUser.username);
       });
-      setUsername(authUser.username);
     } else {
       const guest = guestStore.get().user;
       updateAuthState({
@@ -235,7 +328,7 @@ export async function signInWithEmail(
       return { error: 'No user returned from login' };
     }
 
-    const authUser = formatSupabaseUser(data.user);
+    const authUser = await syncAuthUser(data.user);
     guestStore.set({ user: null });
     updateAuthState({ user: authUser, isLoading: false });
     setUsername(authUser.username);
@@ -326,7 +419,7 @@ export async function signUpWithEmail(
         return { error: 'An account with this email address already exists. Please sign in instead.' };
       }
 
-      const authUser = formatSupabaseUser(data.user);
+      const authUser = await syncAuthUser(data.user);
       if (!data.session) {
         return {
           user: authUser,
@@ -379,66 +472,107 @@ export async function signOut(): Promise<void> {
   updateAuthState({ user: null, isLoading: false });
 }
 
-export async function updateAuthUsername(newUsername: string): Promise<{ error?: string }> {
-  const clean = newUsername.trim().replace(/\s+/g, '_');
-  if (!clean || !USERNAME_PATTERN.test(clean)) {
-    return { error: USERNAME_HINT };
+export async function updateUserProfile(updates: {
+  username?: string;
+  avatarUrl?: string;
+  telegram?: string;
+}): Promise<{ error?: string }> {
+  const cleanUsername = updates.username ? updates.username.trim().replace(/\s+/g, '_') : undefined;
+  const cleanAvatar = updates.avatarUrl !== undefined ? updates.avatarUrl.trim() : undefined;
+  const cleanTelegram = updates.telegram !== undefined ? updates.telegram.trim().replace(/^@/, '') : undefined;
+
+  // Check username if changing
+  if (cleanUsername) {
+    if (!USERNAME_PATTERN.test(cleanUsername)) {
+      return { error: USERNAME_HINT };
+    }
+    const currentName = currentAuthState.user?.username?.toLowerCase();
+    if (cleanUsername.toLowerCase() !== currentName) {
+      const available = await checkUsernameAvailable(cleanUsername, currentAuthState.user?.id);
+      if (!available) {
+        return { error: 'This username is already taken. Please choose another one.' };
+      }
+    }
   }
 
-  // Check username uniqueness against profiles
-  const available = await checkUsernameAvailable(clean, currentAuthState.user?.id);
-  if (!available) {
-    return { error: 'This username is already taken. Please choose another one.' };
-  }
+  // Update local profile store
+  setProfileData({
+    ...(cleanUsername ? { username: cleanUsername } : {}),
+    ...(cleanAvatar !== undefined ? { avatarUrl: cleanAvatar } : {}),
+    ...(cleanTelegram !== undefined ? { telegram: cleanTelegram } : {}),
+  });
 
   if (currentAuthState.user?.isGuest) {
     const updatedGuest: AuthUser = {
       ...currentAuthState.user,
-      username: clean,
+      ...(cleanUsername ? { username: cleanUsername } : {}),
+      ...(cleanAvatar !== undefined ? { avatarUrl: cleanAvatar } : {}),
+      ...(cleanTelegram !== undefined ? { telegram: cleanTelegram } : {}),
     };
     guestStore.set({ user: updatedGuest });
     updateAuthState({ user: updatedGuest });
-    setUsername(clean);
+    refreshLeaderboard();
     return {};
   }
 
   const supabase = getSupabase();
   if (supabase && currentAuthState.user) {
     try {
-      const oldUsername = currentAuthState.user.username;
-      const { data, error } = await supabase.auth.updateUser({
-        data: { username: clean },
+      const userId = currentAuthState.user.id;
+      const effectiveUsername = cleanUsername || currentAuthState.user.username;
+
+      // Update Supabase Auth metadata
+      await supabase.auth.updateUser({
+        data: {
+          username: effectiveUsername,
+          ...(cleanAvatar !== undefined ? { avatar_url: cleanAvatar } : {}),
+          ...(cleanTelegram !== undefined ? { telegram: cleanTelegram } : {}),
+        },
       });
-      if (error) return { error: error.message };
-      if (data.user) {
-        // Also sync to public.profiles table (do not expose email to public scrapers)
-        try {
-          await supabase.from('profiles').upsert({ id: data.user.id, username: clean });
-        } catch {
-          // Graceful fallback if profiles table migration not yet applied
-        }
 
-        // Migrate past scores to the new username strictly scoped to this authenticated user
-        if (oldUsername && oldUsername.toLowerCase() !== clean.toLowerCase()) {
-          try {
-            await supabase.from('scores').update({ player_name: clean }).eq('user_id', data.user.id);
-          } catch {
-            // Ignore if RLS restricts score updates
-          }
-        }
+      // Upsert public.profiles
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: userId,
+        username: effectiveUsername,
+        avatar_url: cleanAvatar,
+        telegram: cleanTelegram,
+      });
 
-        updateAuthState({ user: formatSupabaseUser(data.user) });
-        setUsername(clean);
+      if (profileError) {
+        console.error('Error updating profiles:', profileError.message);
       }
+
+      // Update public.scores
+      await supabase
+        .from('scores')
+        .update({
+          player_name: effectiveUsername,
+          avatar_url: cleanAvatar,
+          telegram: cleanTelegram,
+        })
+        .eq('user_id', userId);
+
+      updateAuthState({
+        user: {
+          ...currentAuthState.user,
+          username: effectiveUsername,
+          avatarUrl: cleanAvatar,
+          telegram: cleanTelegram,
+        },
+      });
+      refreshLeaderboard();
     } catch (err) {
-      return { error: err instanceof Error ? err.message : 'Failed to update username' };
+      return { error: err instanceof Error ? err.message : 'Failed to update profile' };
     }
   } else {
-    // No Supabase configured, just update local state
-    setUsername(clean);
+    refreshLeaderboard();
   }
 
   return {};
+}
+
+export async function updateAuthUsername(newUsername: string): Promise<{ error?: string }> {
+  return updateUserProfile({ username: newUsername });
 }
 
 const subscribeAuth = (listener: () => void) => {

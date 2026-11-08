@@ -17,6 +17,7 @@ const EXTENSIONS: Record<LanguageId, string> = {
   sql: 'sql',
   html: 'html',
   bash: 'sh',
+  prompt: 'prompt',
 };
 
 /** Built from the app's own language list, so the landing page can never overpromise. */

@@ -75,14 +75,46 @@ type SubmitState =
   { status: 'idle' } | { status: 'sending' } | { status: 'done' } | { status: 'error'; message: string };
 
 function SubmitScore({ record }: { record: RunRecord }) {
-  const { username } = useProfile();
+  const { username, avatarUrl, telegram } = useProfile();
   const { user } = useAuth();
   const [draft, setDraft] = useState('');
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [state, setState] = useState<SubmitState>({ status: 'idle' });
   const autoSubmittedRef = useRef(false);
 
   // Authenticated user's account name takes precedence over local guest profile
   const effectiveUsername = (user && !user.isGuest ? user.username : null) || username;
+
+  // Live availability check on draft username
+  useEffect(() => {
+    if (effectiveUsername || !draft.trim()) {
+      setDraftError(null);
+      return;
+    }
+    const clean = draft.trim().replace(/\s+/g, '_');
+    if (!USERNAME_PATTERN.test(clean)) {
+      setDraftError(USERNAME_HINT);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const available = await checkUsernameAvailable(clean, user?.id);
+        if (cancelled) return;
+        if (!available) {
+          setDraftError('This username is already taken. Please choose another one.');
+        } else {
+          setDraftError(null);
+        }
+      } catch {
+        // ignore
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [draft, effectiveUsername, user?.id]);
 
   const submit = useCallback(
     async (event?: FormEvent) => {
@@ -94,8 +126,8 @@ function SubmitScore({ record }: { record: RunRecord }) {
         return;
       }
 
-      // Reject physically impossible / spoofed scores
-      if (record.wpm > 350 || record.wpm <= 0 || record.accuracy > 100 || record.accuracy < 0) {
+      // Reject physically impossible / spoofed scores (strict human typing limit)
+      if (record.wpm > 280 || record.wpm <= 0 || record.accuracy > 100 || record.accuracy < 0) {
         setState({
           status: 'error',
           message: 'Score is outside valid human limits and cannot be submitted.',
@@ -117,19 +149,15 @@ function SubmitScore({ record }: { record: RunRecord }) {
 
       setState({ status: 'sending' });
 
-      // Verify username availability before taking/submitting under a new name (for guests without a set name)
-      if (!effectiveUsername) {
-        try {
-          const available = await checkUsernameAvailable(name, user?.id);
-          if (!available) {
-            setState({
-              status: 'error',
-              message: 'This username is already taken. Please choose another one.',
-            });
-            return;
-          }
-        } catch {
-          // If network fails, continue gracefully
+      // Verify username availability before taking or submitting under a name
+      if (!user || user.isGuest) {
+        const available = await checkUsernameAvailable(name, user?.id);
+        if (!available) {
+          setState({
+            status: 'error',
+            message: 'This username is already taken. Please choose another one.',
+          });
+          return;
         }
         setUsername(name);
       }
@@ -137,6 +165,8 @@ function SubmitScore({ record }: { record: RunRecord }) {
         await submitScore({
           userId: user && !user.isGuest ? user.id : undefined,
           username: name,
+          avatarUrl: user?.avatarUrl || avatarUrl,
+          telegram: user?.telegram || telegram,
           wpm: record.wpm,
           accuracy: record.accuracy,
           language: record.language === 'custom' ? 'mixed' : record.language,
@@ -165,7 +195,7 @@ function SubmitScore({ record }: { record: RunRecord }) {
         });
       }
     },
-    [effectiveUsername, draft, record, user]
+    [effectiveUsername, draft, record, user, avatarUrl, telegram]
   );
 
   useEffect(() => {
@@ -187,7 +217,7 @@ function SubmitScore({ record }: { record: RunRecord }) {
   return (
     <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
       {!effectiveUsername && (
-        <>
+        <div className="flex flex-col gap-1">
           <label htmlFor="submit-username" className="sr-only">
             Username
           </label>
@@ -198,13 +228,17 @@ function SubmitScore({ record }: { record: RunRecord }) {
             placeholder="Pick a username"
             maxLength={18}
             autoComplete="nickname"
-            className="h-9 w-44 rounded-md border border-line-strong bg-canvas px-3 text-xs text-ink transition-ui placeholder:text-muted focus:border-accent focus:outline-none"
+            aria-invalid={!!draftError}
+            className={`h-9 w-44 rounded-md border bg-canvas px-3 text-xs text-ink transition-ui placeholder:text-muted focus:outline-none ${
+              draftError ? 'border-danger focus:border-danger' : 'border-line-strong focus:border-accent'
+            }`}
           />
-        </>
+          {draftError && <span className="text-2xs text-danger">{draftError}</span>}
+        </div>
       )}
       <button
         type="submit"
-        disabled={state.status === 'sending'}
+        disabled={state.status === 'sending' || (!effectiveUsername && (!!draftError || !draft.trim()))}
         className="inline-flex h-9 items-center gap-2 rounded-md border border-line-strong px-3 text-xs font-semibold text-ink transition-ui hover:bg-raised disabled:opacity-60"
       >
         {state.status === 'sending' ? (

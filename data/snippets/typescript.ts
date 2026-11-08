@@ -323,5 +323,63 @@ export class KeystrokeAnalyzer {
     return latencies;
   }
 }`,
+    `export type Unsubscribe = () => void;
+export type Observer<T> = (value: T) => void;
+
+export class Subject<T> {
+  private observers = new Set<Observer<T>>();
+
+  subscribe(observer: Observer<T>): Unsubscribe {
+    this.observers.add(observer);
+    return () => this.observers.delete(observer);
+  }
+
+  next(value: T): void {
+    for (const observer of this.observers) {
+      observer(value);
+    }
+  }
+
+  pipe<R>(operator: (source: Subject<T>) => Subject<R>): Subject<R> {
+    return operator(this);
+  }
+}`,
+    `export interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+export class TTLCache<K, V> {
+  private store = new Map<K, CacheEntry<V>>();
+
+  constructor(private readonly defaultTtlMs: number) {}
+
+  set(key: K, value: V, ttlMs = this.defaultTtlMs): void {
+    const expiresAt = Date.now() + ttlMs;
+    this.store.set(key, { value, expiresAt });
+  }
+
+  get(key: K): V | undefined {
+    const entry = this.store.get(key);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expiresAt) {
+      this.store.delete(key);
+      return undefined;
+    }
+    return entry.value;
+  }
+
+  cleanup(): number {
+    const now = Date.now();
+    let purged = 0;
+    for (const [key, entry] of this.store.entries()) {
+      if (now > entry.expiresAt) {
+        this.store.delete(key);
+        purged++;
+      }
+    }
+    return purged;
+  }
+}`,
   ],
 };

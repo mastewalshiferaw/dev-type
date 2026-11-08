@@ -47,5 +47,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Database Migrations
 
+- Added `20261108030000_hard_database_reset_and_strict_auth.sql` (engine-level auth guard preventing duplicate usernames on signup/metadata update, hard unique constraints, and deduplication).
+- Added `20261108040000_profile_photo_and_telegram.sql` (adds `avatar_url` and `telegram` columns to `public.profiles` and `public.scores` with atomic profile-to-scores sync trigger).
+
+### Profiles, Community & Vibecoder Mode
+
+- **Profile Photos & Avatar Customization**:
+  - Added preset developer avatars (Matrix Hacker, Cyberpunk Coder, Minimalist Terminal, Retro Neon, AI Engineer, Vibecoder).
+  - Added custom image URL support with real-time error fallback to initials.
+  - Avatar is rendered in header popover, leaderboard rows, and personal rank bar.
+- **Telegram Channel for Dev Communities**:
+  - Added optional Telegram channel handle to user profiles.
+  - Leaderboard rows display a direct Telegram link and interactive hover card with `@channel`.
+- **Vibecoder "Prompt" Typing Mode**:
+  - Introduced `Prompt (Vibecoder)` mode under languages.
+  - Added realistic agentic system prompts, XML reasoning tags (`<thinking>`, `<context>`), Cursor `.cursorrules`, and LLM eval rubrics.
+- **Snippet Variety Expansion**:
+  - Expanded variety across all languages (TypeScript, Python, Go, Rust, Bash, SQL, JavaScript) with advanced system patterns, concurrency pipelines, and real-world algorithms.
+- Added `20261108020000_early_username_availability_check.sql` (high-performance RPC availability check and real-time frontend collision prevention).
+- Added `20261108010000_strict_security_and_unique_username.sql` (purges 999 WPM scores, enforces 280 WPM hard limit via PostgreSQL trigger, enforces strict case-insensitive unique username/email, and cascades username changes to past scores).
+- Added `20261108000000_deduplicate_and_upsert_scores.sql` (deduplicates scores, adds UNIQUE constraint on player_name, and allows in-place score updates via RLS).
 - Added `20261107000000_purge_and_prevent_score_spoofing.sql` (initial purge and CHECK constraints).
 - Added `20261107010000_comprehensive_security_lockdown.sql` (self-healing, idempotent consolidation of all security policies and constraints).

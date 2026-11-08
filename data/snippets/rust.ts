@@ -346,5 +346,40 @@ impl Router {
         }
     }
 }`,
+    `use std::sync::{Arc, Mutex, Condvar};
+
+pub struct BoundedQueue<T> {
+    buffer: Mutex<Vec<T>>,
+    not_empty: Condvar,
+    capacity: usize,
+}
+
+impl<T> BoundedQueue<T> {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            buffer: Mutex::new(Vec::with_capacity(capacity)),
+            not_empty: Condvar::new(),
+            capacity,
+        }
+    }
+
+    pub fn push(&self, item: T) -> Result<(), &'static str> {
+        let mut lock = self.buffer.lock().map_err(|_| "poisoned lock")?;
+        if lock.len() >= self.capacity {
+            return Err("queue full");
+        }
+        lock.push(item);
+        self.not_empty.notify_one();
+        Ok(())
+    }
+
+    pub fn pop(&self) -> Result<T, &'static str> {
+        let mut lock = self.buffer.lock().map_err(|_| "poisoned lock")?;
+        while lock.is_empty() {
+            lock = self.not_empty.wait(lock).map_err(|_| "poisoned condvar")?;
+        }
+        Ok(lock.remove(0))
+    }
+}`,
   ],
 };

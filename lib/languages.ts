@@ -14,6 +14,7 @@ export const LANGUAGE_IDS = [
   'sql',
   'html',
   'bash',
+  'prompt',
 ] as const;
 
 export type LanguageId = (typeof LANGUAGE_IDS)[number];
@@ -58,6 +59,17 @@ export const LANGUAGES: Record<LanguageId, { label: string; comments: CommentSyn
     },
   },
   bash: { label: 'Bash', comments: HASH },
+  prompt: {
+    label: 'Prompt (Vibecoder)',
+    comments: {
+      line: ['//', '#'],
+      block: [
+        ['<!--', '-->'],
+        ['/*', '*/'],
+      ],
+      quotes: ['"', "'", '`'],
+    },
+  },
 };
 
 export const LANGUAGE_FILTER_OPTIONS: readonly { value: LanguageFilter; label: string }[] = [
@@ -78,6 +90,7 @@ export function leaderboardLanguageLabel(language?: string): string {
   if (lower === 'all') return 'All';
   if (lower === 'mixed') return 'Mixed';
   if (lower === 'html') return 'HTML';
+  if (lower === 'prompt') return 'Prompt';
   if (isLanguageId(lower)) return LANGUAGES[lower].label;
   return language;
 }

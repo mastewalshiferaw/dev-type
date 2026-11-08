@@ -11,13 +11,17 @@ import {
 
 const POLL_MS = 30_000;
 
-// Lets a submission anywhere in the app refresh every mounted leaderboard
+// Lets a submission or profile update anywhere in the app refresh every mounted leaderboard
 const listeners = new Set<() => void>();
+
+export function refreshLeaderboard(): void {
+  listeners.forEach((listener) => listener());
+}
 
 export async function submitScore(score: ScoreSubmission): Promise<LeaderboardEntry> {
   const provider = await getLeaderboard();
   const entry = await provider.submit(score);
-  listeners.forEach((listener) => listener());
+  refreshLeaderboard();
   return entry;
 }
 

@@ -13,6 +13,8 @@ export interface LeaderboardEntry {
   id: string;
   userId?: string;
   username: string;
+  avatarUrl?: string;
+  telegram?: string;
   wpm: number;
   accuracy: number;
   language: ScoreLanguage;

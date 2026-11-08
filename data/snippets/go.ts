@@ -349,5 +349,66 @@ func (r *RegexRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
   }
   http.NotFound(w, req)
 }`,
+    `type JobResult struct {
+  ID    int
+  Value string
+  Err   error
+}
+
+func WorkerPool(ctx context.Context, numWorkers int, jobs <-chan int) <-chan JobResult {
+  results := make(chan JobResult)
+  var wg sync.WaitGroup
+
+  for w := 0; w < numWorkers; w++ {
+    wg.Add(1)
+    go func(workerID int) {
+      defer wg.Done()
+      for {
+        select {
+        case <-ctx.Done():
+          return
+        case id, ok := <-jobs:
+          if !ok {
+            return
+          }
+          results <- JobResult{ID: id, Value: fmt.Sprintf("worker-%d-processed", workerID)}
+        }
+      }
+    }(w)
+  }
+
+  go func() {
+    wg.Wait()
+    close(results)
+  }()
+
+  return results
+}`,
+    `func MergeChannels[T any](ctx context.Context, cs ...<-chan T) <-chan T {
+  out := make(chan T)
+  var wg sync.WaitGroup
+
+  output := func(c <-chan T) {
+    defer wg.Done()
+    for n := range c {
+      select {
+      case out <- n:
+      case <-ctx.Done():
+        return
+      }
+    }
+  }
+
+  wg.Add(len(cs))
+  for _, c := range cs {
+    go output(c)
+  }
+
+  go func() {
+    wg.Wait()
+    close(out)
+  }()
+  return out
+}`,
   ],
 };

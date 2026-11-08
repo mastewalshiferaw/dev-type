@@ -19,6 +19,8 @@ interface ScoreRow {
   id: string | number;
   user_id?: string | null;
   player_name: string;
+  avatar_url?: string | null;
+  telegram?: string | null;
   wpm: number;
   accuracy: number;
   language: string | null;
@@ -36,6 +38,8 @@ const toEntry = (row: ScoreRow): LeaderboardEntry => ({
   id: String(row.id),
   userId: row.user_id ?? undefined,
   username: row.player_name,
+  avatarUrl: row.avatar_url ?? undefined,
+  telegram: row.telegram ?? undefined,
   wpm: Math.round(row.wpm),
   accuracy: Number(row.accuracy),
   language: (isLanguageId(row.language?.toLowerCase())
@@ -49,16 +53,20 @@ export const supabaseProvider: LeaderboardProvider = {
   async list(query) {
     const now = Date.now();
     try {
-      const runQuery = (withUserId: boolean) => {
-        const req = withUserId
-          ? getClient()
-              .from('scores')
-              .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
-          : getClient().from('scores').select('id, player_name, wpm, accuracy, language, mode, created_at');
+      const runQuery = (withUserId: boolean, withSocials: boolean = true) => {
+        const selectCols = withSocials
+          ? withUserId
+            ? 'id, user_id, player_name, wpm, accuracy, language, mode, created_at, avatar_url, telegram'
+            : 'id, player_name, wpm, accuracy, language, mode, created_at, avatar_url, telegram'
+          : withUserId
+            ? 'id, user_id, player_name, wpm, accuracy, language, mode, created_at'
+            : 'id, player_name, wpm, accuracy, language, mode, created_at';
+
+        const req = getClient().from('scores').select(selectCols);
 
         let filtered = req
           .gte('created_at', new Date(timeframeStart(query.timeframe, now)).toISOString())
-          .lte('wpm', 350)
+          .lte('wpm', 280)
           .gt('wpm', 0)
           .lte('accuracy', 100)
           .gte('accuracy', 0)
@@ -71,7 +79,11 @@ export const supabaseProvider: LeaderboardProvider = {
         return filtered;
       };
 
-      let res = await runQuery(hasUserIdColumn);
+      let res = await runQuery(hasUserIdColumn, true);
+      if (res.error && (res.error.code === '42703' || res.error.message.includes('column') || res.error.message.includes('schema cache'))) {
+        // Fallback without social columns first
+        res = await runQuery(hasUserIdColumn, false);
+      }
       if (
         res.error &&
         hasUserIdColumn &&
@@ -80,7 +92,7 @@ export const supabaseProvider: LeaderboardProvider = {
           res.error.message.includes('schema cache'))
       ) {
         hasUserIdColumn = false;
-        res = await runQuery(false);
+        res = await runQuery(false, false);
       }
 
       if (res.error) {
@@ -107,8 +119,8 @@ export const supabaseProvider: LeaderboardProvider = {
       : false;
     const userId = isUuid ? rawUserId : null;
 
-    // Sanitize and enforce constraints (DEV-002)
-    const MAX_WPM = 350;
+    // Sanitize and enforce constraints (DEV-002: tough anti-cheat boundaries)
+    const MAX_WPM = 280;
     if (score.wpm > MAX_WPM || score.wpm <= 0 || score.accuracy > 100 || score.accuracy < 0) {
       throw new Error('Score rejected: stats are outside valid human limits.');
     }
@@ -118,25 +130,87 @@ export const supabaseProvider: LeaderboardProvider = {
     const cleanLang = (score.language || 'mixed').toLowerCase();
     const cleanMode = (score.modeKey || 'time-30').slice(0, 30);
 
+    const cleanAvatar = score.avatarUrl ? score.avatarUrl.trim().slice(0, 500) : undefined;
+    const cleanTelegram = score.telegram ? score.telegram.trim().replace(/^@/, '').slice(0, 50) : undefined;
+
     const basePayload = {
       player_name: cleanName,
       wpm: cleanWpm,
       accuracy: cleanAccuracy,
       language: cleanLang,
       mode: cleanMode,
+      ...(cleanAvatar ? { avatar_url: cleanAvatar } : {}),
+      ...(cleanTelegram ? { telegram: cleanTelegram } : {}),
     };
 
     const payload = hasUserIdColumn && userId ? { ...basePayload, user_id: userId } : basePayload;
 
+    // 1. Check if a score entry already exists for this player or user
+    try {
+      let existingQuery = client
+        .from('scores')
+        .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at, avatar_url, telegram');
+
+      if (hasUserIdColumn && userId) {
+        existingQuery = existingQuery.or(`user_id.eq.${userId},player_name.eq.${cleanName}`);
+      } else {
+        existingQuery = existingQuery.eq('player_name', cleanName);
+      }
+
+      const { data: existingRows, error: findError } = await existingQuery.limit(1);
+
+      if (!findError && existingRows && existingRows.length > 0) {
+        const existing = existingRows[0] as unknown as ScoreRow;
+        // Keep personal best WPM and accuracy; update stats if new score beats or matches it
+        const isBetter =
+          cleanWpm > existing.wpm || (cleanWpm === existing.wpm && cleanAccuracy >= existing.accuracy);
+
+        const updateData = isBetter
+          ? {
+              ...payload,
+              created_at: new Date().toISOString(),
+            }
+          : {
+              created_at: new Date().toISOString(),
+              ...(cleanAvatar ? { avatar_url: cleanAvatar } : {}),
+              ...(cleanTelegram ? { telegram: cleanTelegram } : {}),
+              ...(hasUserIdColumn && userId && !existing.user_id ? { user_id: userId } : {}),
+            };
+
+        const updateRes = await client
+          .from('scores')
+          .update(updateData)
+          .eq('id', existing.id)
+          .select(
+            hasUserIdColumn
+              ? 'id, user_id, player_name, wpm, accuracy, language, mode, created_at'
+              : 'id, player_name, wpm, accuracy, language, mode, created_at'
+          )
+          .single();
+
+        if (!updateRes.error && updateRes.data) {
+          return toEntry(updateRes.data as unknown as ScoreRow);
+        }
+      }
+    } catch {
+      // Continue to upsert fallback if lookup fails
+    }
+
+    // 2. Insert new entry if player does not exist yet (upsert on player_name to avoid duplicates)
+    const insertPayload = {
+      ...payload,
+      created_at: new Date().toISOString(),
+    };
+
     let res = hasUserIdColumn
       ? await client
           .from('scores')
-          .insert(payload)
+          .upsert(insertPayload, { onConflict: 'player_name' })
           .select('id, user_id, player_name, wpm, accuracy, language, mode, created_at')
           .single()
       : await client
           .from('scores')
-          .insert(basePayload)
+          .upsert(basePayload, { onConflict: 'player_name' })
           .select('id, player_name, wpm, accuracy, language, mode, created_at')
           .single();
 
@@ -150,7 +224,7 @@ export const supabaseProvider: LeaderboardProvider = {
       hasUserIdColumn = false;
       res = await client
         .from('scores')
-        .insert(basePayload)
+        .upsert(basePayload, { onConflict: 'player_name' })
         .select('id, player_name, wpm, accuracy, language, mode, created_at')
         .single();
     }

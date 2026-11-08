@@ -21,8 +21,8 @@ export function rankEntries(
   const best = new Map<string, LeaderboardEntry>();
 
   for (const entry of entries) {
-    // Discard physically impossible or spoofed scores (DEV-002)
-    if (entry.wpm > 350 || entry.wpm <= 0 || entry.accuracy > 100 || entry.accuracy < 0) {
+    // Discard physically impossible or spoofed scores (DEV-002: strict 280 WPM human limit)
+    if (entry.wpm > 280 || entry.wpm <= 0 || entry.accuracy > 100 || entry.accuracy < 0) {
       continue;
     }
     if (Date.parse(entry.createdAt) < since) continue;
@@ -52,14 +52,18 @@ export function rankEntries(
 
   const username = query.username?.trim().toLowerCase();
   const userId = query.userId;
-  // Identity matching for "you":
-  // Match by userId if available, or fall back to matching by username.
-  const you = userId
-    ? (ranked.find(
-        (e) => (e.userId && e.userId === userId) || (username && e.username.trim().toLowerCase() === username)
-      ) ?? null)
+  const isUuid = userId
+    ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+    : false;
+
+  // Strict identity matching for "you":
+  // Authenticated user (valid UUID): ONLY matches entries where e.userId === userId.
+  // Guest user (no UUID): ONLY matches unassigned guest entries (e.userId is undefined) where e.username matches.
+  // An account can NEVER claim another player's score!
+  const you = isUuid
+    ? (ranked.find((e) => e.userId === userId) ?? null)
     : username
-      ? (ranked.find((e) => e.username.trim().toLowerCase() === username) ?? null)
+      ? (ranked.find((e) => !e.userId && e.username.trim().toLowerCase() === username) ?? null)
       : null;
 
   return {

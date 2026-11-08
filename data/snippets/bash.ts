@@ -291,5 +291,54 @@ rotate_database_password() {
   pkill -HUP -f "puma" || true
   echo "Database credentials rotated successfully."
 }`,
+    `#!/usr/bin/env bash
+set -euo pipefail
+
+deploy_service() {
+  local image_tag="$1"
+  local target_color="$2"
+  local port="\${3:-8080}"
+
+  echo "==> Deploying container: $target_color ($image_tag) on port $port"
+  docker pull "registry.internal/api:$image_tag"
+  docker stop "api-$target_color" || true
+  docker rm "api-$target_color" || true
+
+  docker run -d --name "api-$target_color" \\
+    -p "$port:8080" \\
+    --restart unless-stopped \\
+    "registry.internal/api:$image_tag"
+
+  echo "Polling health endpoint..."
+  for attempt in {1..15}; do
+    if curl -fs "http://127.0.0.1:$port/healthz" >/dev/null; then
+      echo "Service healthy. Switching reverse proxy upstream."
+      return 0
+    fi
+    sleep 2
+  done
+  echo "Deployment failed health checks. Rolling back." >&2
+  return 1
+}`,
+    `#!/usr/bin/env bash
+set -euo pipefail
+
+create_snapshot_backup() {
+  local target_dir="/var/backups/postgres"
+  local timestamp
+  timestamp=$(date +%Y%m%d_%H%M%S)
+  local archive_name="db_snapshot_\${timestamp}.sql.gz"
+
+  mkdir -p "$target_dir"
+  echo "Streaming compressed database dump to \${archive_name}..."
+  pg_dump -U postgres -Fc -d production | gzip -9 > "\${target_dir}/\${archive_name}"
+
+  echo "Generating SHA-256 verification checksum..."
+  sha256sum "\${target_dir}/\${archive_name}" > "\${target_dir}/\${archive_name}.sha256"
+
+  echo "Purging local snapshots older than 14 days..."
+  find "$target_dir" -name "db_snapshot_*.sql.gz*" -mtime +14 -delete
+  echo "Snapshot backup completed."
+}`,
   ],
 };

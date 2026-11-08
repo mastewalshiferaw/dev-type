@@ -8,6 +8,7 @@ import { java } from './java';
 import { javascript } from './javascript';
 import { kotlin } from './kotlin';
 import { php } from './php';
+import { prompt } from './prompt';
 import { python } from './python';
 import { ruby } from './ruby';
 import { rust } from './rust';
@@ -34,4 +35,5 @@ export const SNIPPETS: Record<LanguageId, SnippetSet> = {
   sql,
   html,
   bash,
+  prompt,
 };

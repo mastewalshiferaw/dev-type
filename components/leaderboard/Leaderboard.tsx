@@ -30,28 +30,33 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
   const [timeframe, setTimeframe] = useState<Timeframe>('today');
   const [language, setLanguage] = useState<LanguageFilter>('all');
   const [limit, setLimit] = useState<number>(10);
-  const { username } = useProfile();
+  const { username, avatarUrl: localAvatarUrl, telegram: localTelegram } = useProfile();
   const { user } = useAuth();
+  const effectiveUsername = (user && !user.isGuest ? user.username : null) || username;
+  const effectiveAvatarUrl = user?.avatarUrl || localAvatarUrl;
+  const effectiveTelegram = user?.telegram || localTelegram;
+  const authUserId = user && !user.isGuest ? user.id : undefined;
+
   const { page, error, loading, retry } = useLeaderboard({
     timeframe,
     language,
     limit,
-    username: username || undefined,
-    userId: user?.id,
+    username: effectiveUsername || undefined,
+    userId: authUserId,
   });
   const { title, subtitle } = TITLES[timeframe];
-  // Sanitize and filter entries at UI level (DEV-002: drop any spoofed scores > 350 WPM)
+  // Sanitize and filter entries at UI level (DEV-002: drop any spoofed scores > 280 WPM)
   const validEntries = (page?.entries ?? []).filter(
     (entry) =>
       typeof entry.wpm === 'number' &&
       entry.wpm > 0 &&
-      entry.wpm <= 350 &&
+      entry.wpm <= 280 &&
       typeof entry.accuracy === 'number' &&
       entry.accuracy >= 0 &&
       entry.accuracy <= 100
   );
   const you =
-    page?.you && typeof page.you.wpm === 'number' && page.you.wpm > 0 && page.you.wpm <= 350
+    page?.you && typeof page.you.wpm === 'number' && page.you.wpm > 0 && page.you.wpm <= 280
       ? page.you
       : null;
   const youOnBoard = !!you && validEntries.some((entry) => entry.id === you.id);
@@ -139,6 +144,8 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
                   language={entry.language}
                   wpm={entry.wpm}
                   accuracy={entry.accuracy}
+                  avatarUrl={entry.avatarUrl}
+                  telegram={entry.telegram}
                   isYou={entry.id === you?.id}
                 />
               ))}
@@ -201,7 +208,7 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="w-8 pl-1 text-xs text-muted tabular-nums">{you ? `#${you.rank}` : '–'}</span>
             {username ? (
-              <Avatar name={username} size="sm" />
+              <Avatar name={username} size="sm" src={effectiveAvatarUrl || you?.avatarUrl} />
             ) : (
               <span
                 aria-hidden
@@ -211,17 +218,31 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
               </span>
             )}
             {username ? (
-              <div className="group/name relative min-w-0">
+              <div className="group/name relative min-w-0 flex items-center gap-1.5">
                 <span
                   className="block truncate text-xs font-semibold text-ink transition-colors group-hover/name:text-accent"
                   title={
                     you?.language
-                      ? `${username} · Language: ${leaderboardLanguageLabel(you.language)}`
+                      ? `${username} · Language: ${leaderboardLanguageLabel(you.language)}${effectiveTelegram ? ` · Telegram: @${effectiveTelegram.replace(/^@/, '')}` : ''}`
                       : username
                   }
                 >
                   {username}
                 </span>
+                {effectiveTelegram && (
+                  <a
+                    href={`https://t.me/${effectiveTelegram.replace(/^@/, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title={`Telegram: @${effectiveTelegram.replace(/^@/, '')}`}
+                    className="inline-flex shrink-0 items-center text-sky-400 hover:text-sky-300 transition-colors"
+                  >
+                    <svg className="size-3 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
+                    </svg>
+                  </a>
+                )}
                 {you?.language && (
                   <div
                     role="tooltip"
@@ -231,6 +252,13 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
                     <span className="font-semibold text-accent">
                       {leaderboardLanguageLabel(you.language)}
                     </span>
+                    {effectiveTelegram && (
+                      <>
+                        <span className="text-line-strong">·</span>
+                        <span className="text-muted">Telegram:</span>
+                        <span className="font-semibold text-sky-400">@{effectiveTelegram.replace(/^@/, '')}</span>
+                      </>
+                    )}
                     <span className="absolute -bottom-1 left-4 size-2 -translate-x-1/2 rotate-45 border-r border-b border-line-strong bg-surface" />
                   </div>
                 )}

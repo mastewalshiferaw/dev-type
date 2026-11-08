@@ -253,5 +253,60 @@ INSERT INTO audit_events (entity_type, entity_id, action, performed_by)
 VALUES ('order', $1, 'payment_settled', 'payment-gateway-webhook');
 
 COMMIT;`,
+    `SELECT
+  bucket AS time_window,
+  COUNT(e.id) AS total_requests,
+  ROUND(AVG(e.duration_ms), 2) AS avg_duration_ms,
+  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY e.duration_ms) AS p95_latency,
+  PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY e.duration_ms) AS p99_latency
+FROM generate_series(
+  NOW() - INTERVAL '24 hours',
+  NOW(),
+  INTERVAL '1 hour'
+) AS bucket
+LEFT JOIN api_request_logs e
+  ON e.created_at >= bucket
+  AND e.created_at < bucket + INTERVAL '1 hour'
+GROUP BY bucket
+ORDER BY bucket ASC;`,
+    `WITH user_effective_permissions AS (
+  SELECT DISTINCT p.permission_code
+  FROM users u
+  JOIN user_role_memberships urm ON urm.user_id = u.id
+  JOIN roles r ON r.id = urm.role_id
+  JOIN role_permissions rp ON rp.role_id = r.id
+  JOIN permissions p ON p.id = rp.permission_id
+  WHERE u.id = $1 AND u.is_active = TRUE AND r.is_active = TRUE
+)
+SELECT
+  $1::UUID AS user_id,
+  'billing.invoice.void' AS requested_action,
+  EXISTS (
+    SELECT 1 FROM user_effective_permissions
+    WHERE permission_code IN ('billing.admin', 'billing.invoice.void')
+  ) AS is_authorized;`,
+    `WITH ranked_submissions AS (
+  SELECT
+    user_id,
+    language,
+    wpm,
+    accuracy,
+    ROW_NUMBER() OVER (
+      PARTITION BY user_id, language
+      ORDER BY wpm DESC, accuracy DESC
+    ) AS row_num
+  FROM raw_test_scores
+  WHERE created_at >= NOW() - INTERVAL '30 days'
+)
+INSERT INTO user_personal_bests (user_id, language, wpm, accuracy, achieved_at)
+SELECT user_id, language, wpm, accuracy, NOW()
+FROM ranked_submissions
+WHERE row_num = 1
+ON CONFLICT (user_id, language)
+DO UPDATE SET
+  wpm = EXCLUDED.wpm,
+  accuracy = EXCLUDED.accuracy,
+  achieved_at = EXCLUDED.achieved_at
+WHERE EXCLUDED.wpm > user_personal_bests.wpm;`,
   ],
 };

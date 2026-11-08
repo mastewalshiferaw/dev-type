@@ -51,10 +51,10 @@ export const mockProvider: LeaderboardProvider = {
 
   async submit(score: ScoreSubmission) {
     await delay();
-    if (score.wpm > 350 || score.wpm <= 0 || score.accuracy > 100 || score.accuracy < 0) {
+    if (score.wpm > 280 || score.wpm <= 0 || score.accuracy > 100 || score.accuracy < 0) {
       throw new Error('Score rejected: stats are outside valid human limits.');
     }
-    const cleanWpm = Math.min(350, Math.max(1, Math.round(score.wpm)));
+    const cleanWpm = Math.min(280, Math.max(1, Math.round(score.wpm)));
     const cleanAccuracy = Math.min(100, Math.max(0, Number(score.accuracy.toFixed(2))));
     const entry: LeaderboardEntry = {
       ...score,

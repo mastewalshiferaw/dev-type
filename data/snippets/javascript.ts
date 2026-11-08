@@ -321,5 +321,50 @@ export function throttle(fn, limit = 200) {
   <polyline points="\${coords.join(' ')}" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
 </svg>\`;
 }`,
+    `export function createConcurrencyPool(concurrencyLimit) {
+  const queue = [];
+  let activeCount = 0;
+
+  const next = () => {
+    if (activeCount >= concurrencyLimit || queue.length === 0) return;
+    activeCount++;
+    const { task, resolve, reject } = queue.shift();
+
+    Promise.resolve()
+      .then(task)
+      .then(resolve, reject)
+      .finally(() => {
+        activeCount--;
+        next();
+      });
+  };
+
+  return (task) =>
+    new Promise((resolve, reject) => {
+      queue.push({ task, resolve, reject });
+      next();
+    });
+}`,
+    `export async function* streamChunks(readableStream) {
+  const reader = readableStream.getReader();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += new TextDecoder().decode(value, { stream: true });
+      const lines = buffer.split('\\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.trim()) yield JSON.parse(line);
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}`,
   ],
 };
