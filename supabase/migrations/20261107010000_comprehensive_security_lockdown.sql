@@ -1,5 +1,5 @@
 -- ==============================================================================
--- DEV_TYPE Comprehensive Security Lockdown Migration
+-- DEV_TYPE Comprehensive Security Lockdown Migration (Self-Healing & Idempotent)
 -- ==============================================================================
 -- This script hardens all database tables against:
 -- 1. Score spoofing / tampering (wpm > 350)
@@ -11,8 +11,13 @@
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
--- 1. SCORES TABLE HARDENING & PURGE
+-- 1. SCORES TABLE: ENSURE COLUMNS, PURGE & HARDEN
 -- ------------------------------------------------------------------------------
+
+-- Ensure all expected columns exist even if created under an older schema
+ALTER TABLE public.scores ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.scores ADD COLUMN IF NOT EXISTS language text DEFAULT 'mixed';
+ALTER TABLE public.scores ADD COLUMN IF NOT EXISTS mode text DEFAULT 'time-30';
 
 -- Delete any existing corrupted or spoofed scores
 DELETE FROM public.scores
@@ -66,13 +71,25 @@ DROP POLICY IF EXISTS "Deny public update scores" ON public.scores;
 -- 2. PROFILES TABLE: STOP EMAIL HARVESTING / PII LEAK
 -- ------------------------------------------------------------------------------
 
--- Ensure email column is not readable by anonymous scrapers.
--- The auth.users table already holds the user's private email securely.
--- We null out existing emails in public.profiles to protect user privacy.
-UPDATE public.profiles SET email = NULL WHERE email IS NOT NULL;
+-- Ensure profiles table exists
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username text NOT NULL,
+  created_at timestamptz DEFAULT now() NOT NULL
+);
 
--- Remove email column or make it restricted:
--- If public profiles are queried, scrapers can only see id, username, and created_at.
+-- Safely null out existing emails if the email column exists in profiles
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'email'
+  ) THEN
+    EXECUTE 'UPDATE public.profiles SET email = NULL WHERE email IS NOT NULL';
+  END IF;
+END $$;
+
+-- Public can read profile usernames and ranks without exposing PII
 DROP POLICY IF EXISTS "Allow public read access to profiles" ON public.profiles;
 CREATE POLICY "Allow public read access to profiles" ON public.profiles
   FOR SELECT USING (true);
@@ -105,8 +122,29 @@ $$;
 
 
 -- ------------------------------------------------------------------------------
--- 4. USER_LOGS: PREVENT CORRUPTED STATS
+-- 4. USER_LOGS: ENSURE TABLE & PREVENT CORRUPTED STATS
 -- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.user_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  wpm integer NOT NULL,
+  raw_wpm integer,
+  accuracy integer NOT NULL,
+  consistency integer,
+  language text,
+  mode text,
+  duration_ms integer,
+  created_at timestamptz DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.user_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage their own logs" ON public.user_logs;
+CREATE POLICY "Users manage their own logs" ON public.user_logs
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 
 ALTER TABLE public.user_logs DROP CONSTRAINT IF EXISTS user_logs_wpm_chk;
 ALTER TABLE public.user_logs ADD CONSTRAINT user_logs_wpm_chk CHECK (wpm >= 0 AND wpm <= 350);
@@ -175,3 +213,10 @@ BEGIN
   RETURN new;
 END;
 $$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created_profile ON auth.users;
+CREATE TRIGGER on_auth_user_created_profile
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user_profile();
+
