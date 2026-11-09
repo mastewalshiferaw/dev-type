@@ -2,9 +2,39 @@ import { useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 import { profileStore, setUsername, setProfileData, USERNAME_PATTERN, USERNAME_HINT } from '@/lib/profile';
-import { createLocalStore } from '@/lib/store';
+import { createLocalStore, useLocalStore } from '@/lib/store';
 import { refreshLeaderboard } from '@/hooks/useLeaderboard';
 import type { AuthState, AuthUser } from './types';
+
+export type AuthModalMode = 'signin' | 'signup' | 'forgot' | 'update_password';
+
+export interface AuthModalState {
+  open: boolean;
+  mode: AuthModalMode;
+}
+
+export const authModalStore = createLocalStore<AuthModalState>(
+  'devtype:auth_modal',
+  { open: false, mode: 'signin' },
+  (raw) => {
+    if (raw && typeof raw === 'object' && 'open' in raw && 'mode' in raw) {
+      return raw as AuthModalState;
+    }
+    return { open: false, mode: 'signin' };
+  }
+);
+
+export function useAuthModal(): AuthModalState {
+  return useLocalStore(authModalStore);
+}
+
+export function openAuthModal(mode: AuthModalMode = 'signin') {
+  authModalStore.set({ open: true, mode });
+}
+
+export function closeAuthModal() {
+  authModalStore.set({ open: false, mode: 'signin' });
+}
 
 const GUEST_KEY = 'devtype:guest_user';
 
@@ -237,8 +267,20 @@ export function initAuth() {
     }
   });
 
+  // Check URL parameters for password recovery link
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (hash.includes('type=recovery') || search.includes('recovery=true')) {
+      openAuthModal('update_password');
+    }
+  }
+
   // Listen to Supabase auth events
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      openAuthModal('update_password');
+    }
     if (session?.user) {
       syncAuthUser(session.user).then((authUser) => {
         guestStore.set({ user: null });
@@ -435,6 +477,67 @@ export async function signUpWithEmail(
     return { error: 'Could not create account' };
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Sign up failed' };
+  }
+}
+
+export async function requestPasswordReset(
+  email: string
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { error: 'Supabase is not configured' };
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+    return { error: 'Please enter a valid email address' };
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const redirectTo = `${origin}/play?recovery=true`;
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to send password reset email' };
+  }
+}
+
+export async function updateUserPassword(
+  newPassword: string
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { error: 'Supabase is not configured' };
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: 'Password must be at least 6 characters long' };
+  }
+
+  if (newPassword.length > 72) {
+    return { error: 'Password cannot exceed 72 characters' };
+  }
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to update password' };
   }
 }
 

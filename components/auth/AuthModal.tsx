@@ -1,36 +1,69 @@
 'use client';
 
 import * as Dialog from '@radix-ui/react-dialog';
-import { Check, Flame, Loader2, Lock, Mail, MailCheck, User, X } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
-import { isDisposableOrFakeEmail, signInAsGuest, signInWithEmail, signUpWithEmail } from '@/lib/auth';
+import { ArrowLeft, Check, Flame, KeyRound, Loader2, Lock, Mail, MailCheck, User, X } from 'lucide-react';
+import { useState, useEffect, type FormEvent } from 'react';
+import {
+  isDisposableOrFakeEmail,
+  signInAsGuest,
+  signInWithEmail,
+  signUpWithEmail,
+  requestPasswordReset,
+  updateUserPassword,
+  useAuthModal,
+  closeAuthModal,
+  type AuthModalMode,
+} from '@/lib/auth';
 import { USERNAME_HINT, USERNAME_PATTERN } from '@/lib/profile';
 
 interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  defaultMode?: 'signin' | 'signup';
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultMode?: AuthModalMode;
 }
 
-export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }: Props) {
-  const [mode, setMode] = useState<'signin' | 'signup'>(defaultMode);
+export default function AuthModal({
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+  defaultMode = 'signin',
+}: Props) {
+  const globalModal = useAuthModal();
+  const isOpen = (controlledOpen !== undefined && controlledOpen) || globalModal.open;
+
+  const [mode, setMode] = useState<AuthModalMode>(defaultMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  // Sync mode when global modal triggers
+  useEffect(() => {
+    if (globalModal.open) {
+      setMode(globalModal.mode);
+      setError(null);
+      setSuccessMessage(null);
+      setResetEmailSent(false);
+    }
+  }, [globalModal.open, globalModal.mode]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setError(null);
       setSuccessMessage(null);
       setConfirmationEmail(null);
+      setResetEmailSent(false);
+      setPassword('');
+      setConfirmPassword('');
+      closeAuthModal();
     } else {
       setMode(defaultMode);
     }
-    onOpenChange(nextOpen);
+    setControlledOpen?.(nextOpen);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -38,6 +71,59 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
     setError(null);
     setSuccessMessage(null);
 
+    // 1. Password Reset Request Mode
+    if (mode === 'forgot') {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email.trim())) {
+        setError('Please enter a valid email address');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await requestPasswordReset(email);
+        if (res.error) {
+          setError(res.error);
+        } else {
+          setResetEmailSent(true);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to send reset link');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // 2. Set New Password Mode
+    if (mode === 'update_password') {
+      if (!password || password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await updateUserPassword(password);
+        if (res.error) {
+          setError(res.error);
+        } else {
+          setSuccessMessage('Password updated successfully! You can now continue.');
+          setTimeout(() => {
+            handleOpenChange(false);
+          }, 1800);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update password');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // 3. Sign In & Sign Up Modes
     if (!email || !password) {
       setError('Please fill in all required fields');
       return;
@@ -77,7 +163,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
         if (res.error) {
           setError(res.error);
         } else {
-          onOpenChange(false);
+          handleOpenChange(false);
         }
       } else {
         const res = await signUpWithEmail(email, password, cleanUsername || undefined);
@@ -86,7 +172,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
         } else if (res.needsConfirmation) {
           setConfirmationEmail(email.trim());
         } else {
-          onOpenChange(false);
+          handleOpenChange(false);
         }
       }
     } catch (err) {
@@ -98,25 +184,43 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
 
   const handleGuest = () => {
     signInAsGuest();
-    onOpenChange(false);
+    handleOpenChange(false);
   };
 
+  const modalTitle =
+    mode === 'forgot'
+      ? 'Reset Your Password'
+      : mode === 'update_password'
+        ? 'Set New Password'
+        : mode === 'signin'
+          ? 'Sign In to DEV_TYPE'
+          : 'Create an Account';
+
+  const modalDescription =
+    mode === 'forgot'
+      ? 'Enter your email to receive a recovery link'
+      : mode === 'update_password'
+        ? 'Choose a new password for your account'
+        : 'Keep your streaks, and practice logs synced';
+
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root open={isOpen} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="data-[state=open]:animate-fade fixed inset-0 z-50 bg-backdrop/60 backdrop-blur-xs" />
         <Dialog.Content className="rounded-2xl fixed top-1/2 left-1/2 z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 border border-line bg-surface p-6 shadow-modal focus:outline-none data-[state=open]:animate-pop">
           <div className="flex items-center justify-between border-b border-line pb-4">
             <div className="flex items-center gap-2">
               <span className="flex size-8 items-center justify-center rounded-lg bg-accent-fill/15 text-accent">
-                <Flame size={18} className="animate-pulse" />
+                {mode === 'forgot' || mode === 'update_password' ? (
+                  <KeyRound size={18} />
+                ) : (
+                  <Flame size={18} className="animate-pulse" />
+                )}
               </span>
               <div>
-                <Dialog.Title className="text-base font-bold text-ink">
-                  {mode === 'signin' ? 'Sign In to DEV_TYPE' : 'Create an Account'}
-                </Dialog.Title>
+                <Dialog.Title className="text-base font-bold text-ink">{modalTitle}</Dialog.Title>
                 <Dialog.Description className="text-2xs text-muted">
-                  Keep your streaks, and practice logs synced
+                  {modalDescription}
                 </Dialog.Description>
               </div>
             </div>
@@ -162,35 +266,68 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                 </button>
               </div>
             </div>
-          ) : (
-            <>
-              {/* Mode Switch Tabs */}
-              <div className="mt-4 flex rounded-lg border border-line bg-canvas p-1">
+          ) : mode === 'forgot' && resetEmailSent ? (
+            <div className="mt-4 flex flex-col items-center text-center">
+              <div className="rounded-2xl flex size-12 items-center justify-center border border-accent/30 bg-accent-fill/15 text-accent shadow-sm">
+                <MailCheck size={26} />
+              </div>
+              <h3 className="mt-3 text-base font-bold text-ink">Reset Link Sent</h3>
+              <p className="mt-2 max-w-xs text-xs leading-relaxed text-muted">
+                We sent a password recovery link to{' '}
+                <span className="font-semibold text-ink">{email}</span>. Click the link in your email to choose a new password.
+              </p>
+              <div className="mt-5 flex w-full flex-col gap-2">
                 <button
                   type="button"
                   onClick={() => {
+                    setResetEmailSent(false);
                     setMode('signin');
                     setError(null);
                   }}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
-                    mode === 'signin' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
-                  }`}
+                  className="inline-flex h-9 w-full items-center justify-center rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
                 >
-                  Sign In
+                  Back to Sign In
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setError(null);
-                  }}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
-                    mode === 'signup' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
-                  }`}
+                  onClick={() => setResetEmailSent(false)}
+                  className="inline-flex h-8 w-full items-center justify-center text-xs text-muted transition-ui hover:text-ink"
                 >
-                  Create Account
+                  Send to another email
                 </button>
               </div>
+            </div>
+          ) : (
+            <>
+              {/* Mode Switch Tabs only for signin and signup */}
+              {(mode === 'signin' || mode === 'signup') && (
+                <div className="mt-4 flex rounded-lg border border-line bg-canvas p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      setError(null);
+                    }}
+                    className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
+                      mode === 'signin' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signup');
+                      setError(null);
+                    }}
+                    className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-ui ${
+                      mode === 'signup' ? 'bg-surface text-ink shadow-xs' : 'text-muted hover:text-ink'
+                    }`}
+                  >
+                    Create Account
+                  </button>
+                </div>
+              )}
 
               {error && (
                 <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
@@ -206,6 +343,7 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
               )}
 
               <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+                {/* Signup Username */}
                 {mode === 'signup' && (
                   <div className="flex flex-col gap-1">
                     <label
@@ -229,80 +367,176 @@ export default function AuthModal({ open, onOpenChange, defaultMode = 'signin' }
                   </div>
                 )}
 
-                <div className="flex flex-col gap-1">
-                  <label
-                    className="text-2xs font-semibold tracking-wider text-muted uppercase"
-                    htmlFor="auth-email"
-                  >
-                    Email{' '}
-                    {mode === 'signup' && (
-                      <span className="font-normal text-muted normal-case">(for device sync)</span>
-                    )}
-                  </label>
-                  <div className="relative">
-                    <Mail size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-                    <input
-                      id="auth-email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="developer@example.com"
-                      autoComplete="email"
-                      className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
-                    />
+                {/* Email Field (for signin, signup, forgot) */}
+                {mode !== 'update_password' && (
+                  <div className="flex flex-col gap-1">
+                    <label
+                      className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                      htmlFor="auth-email"
+                    >
+                      Email{' '}
+                      {mode === 'signup' && (
+                        <span className="font-normal text-muted normal-case">(for device sync)</span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <Mail size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                      <input
+                        id="auth-email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="developer@example.com"
+                        autoComplete="email"
+                        className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="flex flex-col gap-1">
-                  <label
-                    className="text-2xs font-semibold tracking-wider text-muted uppercase"
-                    htmlFor="auth-password"
-                  >
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-                    <input
-                      id="auth-password"
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                      className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
-                    />
+                {/* Password Field for signin and signup */}
+                {(mode === 'signin' || mode === 'signup') && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label
+                        className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                        htmlFor="auth-password"
+                      >
+                        Password
+                      </label>
+                      {mode === 'signin' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('forgot');
+                            setError(null);
+                            setSuccessMessage(null);
+                          }}
+                          className="text-2xs font-semibold text-accent hover:underline transition-colors"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                      <input
+                        id="auth-password"
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                        className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
+                {/* New Password & Confirm Password for update_password */}
+                {mode === 'update_password' && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <label
+                        className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                        htmlFor="auth-new-password"
+                      >
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                        <input
+                          id="auth-new-password"
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="At least 6 characters"
+                          autoComplete="new-password"
+                          className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label
+                        className="text-2xs font-semibold tracking-wider text-muted uppercase"
+                        htmlFor="auth-confirm-password"
+                      >
+                        Confirm New Password
+                      </label>
+                      <div className="relative">
+                        <Lock size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                        <input
+                          id="auth-confirm-password"
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Repeat new password"
+                          autoComplete="new-password"
+                          className="h-9 w-full rounded-md border border-line-strong bg-canvas pr-3 pl-9 text-sm text-ink placeholder:text-muted/60 focus:border-accent focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
                   className="mt-2 inline-flex h-9 items-center justify-center gap-2 rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover disabled:opacity-50"
                 >
                   {loading && <Loader2 size={14} className="animate-spin" />}
-                  {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                  {mode === 'signin'
+                    ? 'Sign In'
+                    : mode === 'signup'
+                      ? 'Create Account'
+                      : mode === 'forgot'
+                        ? 'Send Recovery Link'
+                        : 'Update Password'}
                 </button>
+
+                {/* Back to sign in link for forgot mode */}
+                {mode === 'forgot' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      setError(null);
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs text-muted hover:text-ink transition-colors"
+                  >
+                    <ArrowLeft size={13} />
+                    Back to Sign In
+                  </button>
+                )}
               </form>
 
-              <div className="mt-4 flex items-center gap-2">
-                <span className="h-px flex-1 bg-line" />
-                <span className="text-2xs text-muted uppercase">or</span>
-                <span className="h-px flex-1 bg-line" />
-              </div>
+              {/* Guest Option for signin and signup */}
+              {(mode === 'signin' || mode === 'signup') && (
+                <>
+                  <div className="mt-4 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-line" />
+                    <span className="text-2xs text-muted uppercase">or</span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
 
-              <button
-                type="button"
-                onClick={handleGuest}
-                className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
-              >
-                Continue as Guest (No email required)
-              </button>
+                  <button
+                    type="button"
+                    onClick={handleGuest}
+                    className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md border border-line bg-canvas text-xs font-medium text-ink transition-ui hover:bg-raised"
+                  >
+                    Continue as Guest (No email required)
+                  </button>
 
-              <p className="mt-3 text-center text-2xs text-muted">
-                Guest mode saves runs locally and lets you compete on the leaderboard freely.
-              </p>
+                  <p className="mt-3 text-center text-2xs text-muted">
+                    Guest mode saves runs locally and lets you compete on the leaderboard freely.
+                  </p>
+                </>
+              )}
             </>
           )}
         </Dialog.Content>
