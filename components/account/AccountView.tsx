@@ -14,6 +14,7 @@ import { useAuth, signOut } from '@/lib/auth';
 import { isUserAdmin } from '@/lib/auth/admin';
 import { leaderboardLanguageLabel } from '@/lib/languages';
 import { usePracticeLogs } from '@/lib/logs';
+import { cleanTelegramChannel } from '@/lib/profile';
 import { modeKeyLabel } from '@/lib/settings';
 import { calculateStreak } from '@/lib/streak';
 
@@ -106,7 +107,7 @@ export default function AccountView() {
       <div className="rounded-2xl border border-line bg-surface p-5 shadow-panel sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
-            <Avatar name={user?.username || 'Guest'} size="md" />
+            <Avatar name={user?.username || 'Guest'} src={user?.avatarUrl} size="md" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-ink">{user?.username || 'Guest Coder'}</h1>
@@ -129,6 +130,19 @@ export default function AccountView() {
                   </span>
                 )}
               </div>
+              {user?.telegram && (
+                <a
+                  href={`https://t.me/${cleanTelegramChannel(user.telegram)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 inline-flex items-center gap-1 text-xs text-sky-400 font-mono font-medium hover:underline hover:text-sky-300 transition-colors"
+                >
+                  <svg className="size-3 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
+                  </svg>
+                  @{cleanTelegramChannel(user.telegram)}
+                </a>
+              )}
               <p className="text-xs text-muted">
                 {user?.isGuest ? 'Local practice sessions on this browser' : user?.email || 'Logged in coder'}
               </p>

@@ -38,3 +38,7 @@ export function setUsername(username: string) {
 export function setProfileData(partial: Partial<Profile>) {
   profileStore.set({ ...profileStore.get(), ...partial });
 }
+
+export { cleanTelegramChannel, fetchTelegramAvatar } from '@/lib/telegram';
+
+

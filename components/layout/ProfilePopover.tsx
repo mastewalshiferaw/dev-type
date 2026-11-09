@@ -1,7 +1,7 @@
 'use client';
 
 import * as Popover from '@radix-ui/react-popover';
-import { Check, Flame, History, ImageIcon, LogIn, LogOut, Send, Trash2, UserRound } from 'lucide-react';
+import { Check, Flame, History, ImageIcon, Loader2, LogIn, LogOut, Send, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import AuthModal from '@/components/auth/AuthModal';
@@ -10,7 +10,14 @@ import { signOut, useAuth, updateUserProfile, checkUsernameAvailable } from '@/l
 import { clearHistory, useBests, useHistory } from '@/lib/history';
 import { languageLabel } from '@/lib/languages';
 import { usePracticeLogs } from '@/lib/logs';
-import { AVATAR_PRESETS, USERNAME_HINT, USERNAME_PATTERN, useProfile } from '@/lib/profile';
+import {
+  AVATAR_PRESETS,
+  USERNAME_HINT,
+  USERNAME_PATTERN,
+  useProfile,
+  cleanTelegramChannel,
+  fetchTelegramAvatar,
+} from '@/lib/profile';
 import { modeKeyLabel } from '@/lib/settings';
 import { calculateStreak } from '@/lib/streak';
 
@@ -25,6 +32,9 @@ function ProfileForm() {
   const [draftUsername, setDraftUsername] = useState(username);
   const [draftAvatar, setDraftAvatar] = useState(avatarUrl || '');
   const [draftTelegram, setDraftTelegram] = useState(telegram || '');
+  const [channelAvatar, setChannelAvatar] = useState<string | null>(null);
+  const [channelTitle, setChannelTitle] = useState<string | null>(null);
+  const [channelFetchStatus, setChannelFetchStatus] = useState<'idle' | 'fetching' | 'found' | 'not-found'>('idle');
   const [showCustomAvatarInput, setShowCustomAvatarInput] = useState(false);
   const [status, setStatus] = useState<'idle' | 'checking' | 'saving' | 'saved' | 'invalid'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -78,10 +88,54 @@ function ProfileForm() {
     };
   }, [draftUsername, user?.username, user?.id, username]);
 
+  // Debounced auto-fetch for Telegram channel photo
+  useEffect(() => {
+    const clean = cleanTelegramChannel(draftTelegram);
+    if (!clean || clean.length < 4) {
+      setChannelAvatar(null);
+      setChannelTitle(null);
+      setChannelFetchStatus('idle');
+      return;
+    }
+
+    let cancelled = false;
+    setChannelFetchStatus('fetching');
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchTelegramAvatar(clean);
+        if (cancelled) return;
+        if (res.avatarUrl) {
+          setChannelAvatar(res.avatarUrl);
+          setChannelTitle(res.title || null);
+          setChannelFetchStatus('found');
+          // Automatically set draftAvatar if the user hasn't selected another avatar or was using channel avatar
+          setDraftAvatar((prev) => {
+            if (!prev || prev === channelAvatar) {
+              return res.avatarUrl!;
+            }
+            return prev;
+          });
+        } else {
+          setChannelAvatar(null);
+          setChannelTitle(null);
+          setChannelFetchStatus('not-found');
+        }
+      } catch {
+        if (!cancelled) setChannelFetchStatus('idle');
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [draftTelegram]);
+
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const cleanName = draftUsername.trim().replace(/\s+/g, '_');
-    const cleanTelegram = draftTelegram.trim().replace(/^@/, '');
+    const cleanTelegram = cleanTelegramChannel(draftTelegram);
     const cleanAvatar = draftAvatar.trim();
 
     setDraftUsername(cleanName);
@@ -157,6 +211,31 @@ function ProfileForm() {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5">
+          {/* Telegram Channel Avatar option if available */}
+          {channelAvatar && (
+            <button
+              type="button"
+              onClick={() => setDraftAvatar(draftAvatar === channelAvatar ? '' : channelAvatar)}
+              title={channelTitle ? `Use Telegram Channel photo (${channelTitle})` : 'Use Telegram Channel photo'}
+              className={`relative size-8 shrink-0 overflow-hidden rounded-full ring-2 transition-all ${
+                draftAvatar === channelAvatar
+                  ? 'ring-accent ring-offset-2 ring-offset-surface scale-105'
+                  : 'ring-sky-500/50 hover:ring-sky-400'
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={channelAvatar} alt="Telegram channel photo" className="size-full object-cover" />
+              <span
+                title="Channel Photo"
+                className="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center rounded-full bg-sky-500 text-white"
+              >
+                <svg className="size-2 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
+                </svg>
+              </span>
+            </button>
+          )}
+
           {AVATAR_PRESETS.map((preset) => {
             const isSelected = draftAvatar === preset.url;
             return (
@@ -228,25 +307,71 @@ function ProfileForm() {
       </div>
 
       {/* Telegram Channel Field */}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="profile-telegram" className="label text-muted">
-          Telegram Channel (Dev Community)
-        </label>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <label htmlFor="profile-telegram" className="label text-muted">
+            Telegram Channel (Dev Community)
+          </label>
+          {channelFetchStatus === 'fetching' && (
+            <span className="flex items-center gap-1 text-3xs text-muted">
+              <Loader2 size={10} className="animate-spin text-sky-400" />
+              Fetching photo...
+            </span>
+          )}
+        </div>
         <div className="relative flex items-center">
           <span className="pointer-events-none absolute left-2.5 text-xs text-muted font-mono">@</span>
           <input
             id="profile-telegram"
             value={draftTelegram}
             onChange={(event) => {
-              setDraftTelegram(event.target.value.replace(/^@/, ''));
+              setDraftTelegram(cleanTelegramChannel(event.target.value));
               setStatus('idle');
             }}
             maxLength={32}
-            placeholder="devchannel"
+            placeholder="channelname or t.me/channel"
             className="h-8 w-full rounded-md border border-line-strong bg-canvas pl-6 pr-2.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
           />
         </div>
-        <p className="text-2xs text-muted">Shows on leaderboard hover cards with a direct link.</p>
+
+        {/* Live Channel Avatar preview & quick apply card */}
+        {channelAvatar && (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/25 bg-sky-500/8 px-2.5 py-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={channelAvatar}
+                alt="Channel avatar"
+                className="size-7 shrink-0 rounded-full object-cover ring-1 ring-sky-500/50"
+              />
+              <div className="flex min-w-0 flex-col">
+                <span className="text-2xs font-semibold text-ink truncate">
+                  {channelTitle || `@${cleanTelegramChannel(draftTelegram)}`}
+                </span>
+                <span className="text-3xs text-sky-400">Channel photo detected</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDraftAvatar(channelAvatar)}
+              className={`shrink-0 rounded px-2 py-1 text-3xs font-bold transition-all ${
+                draftAvatar === channelAvatar
+                  ? 'bg-accent/20 text-accent ring-1 ring-accent/30'
+                  : 'bg-sky-500 text-white hover:bg-sky-400'
+              }`}
+            >
+              {draftAvatar === channelAvatar ? 'Active' : 'Apply Photo'}
+            </button>
+          </div>
+        )}
+
+        {channelFetchStatus === 'not-found' && cleanTelegramChannel(draftTelegram).length >= 4 && (
+          <p className="text-2xs text-muted">No custom photo found on this channel.</p>
+        )}
+
+        <p className="text-2xs text-muted">
+          Shows below your username on the leaderboard with a direct link.
+        </p>
       </div>
 
       {/* Save Button */}
@@ -317,21 +442,22 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
                     <UserRound size={16} aria-hidden />
                   </span>
                 )}
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-bold text-ink">{username || 'Anonymous coder'}</p>
-                    {effectiveTelegram && (
-                      <a
-                        href={`https://t.me/${effectiveTelegram.replace(/^@/, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-2xs text-sky-400 font-semibold hover:underline"
-                      >
-                        @{effectiveTelegram.replace(/^@/, '')}
-                      </a>
-                    )}
-                  </div>
-                  <p className="text-2xs text-muted">
+                <div className="flex min-w-0 flex-col justify-center">
+                  <p className="text-sm font-bold text-ink truncate">{username || 'Anonymous coder'}</p>
+                  {effectiveTelegram && (
+                    <a
+                      href={`https://t.me/${cleanTelegramChannel(effectiveTelegram)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/tg inline-flex items-center gap-1 text-2xs text-sky-400 font-mono font-medium hover:underline hover:text-sky-300 transition-colors truncate -mt-0.5"
+                    >
+                      <svg className="size-2.5 fill-current shrink-0 transition-transform group-hover/tg:scale-110" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
+                      </svg>
+                      @{cleanTelegramChannel(effectiveTelegram)}
+                    </a>
+                  )}
+                  <p className="text-2xs text-muted truncate">
                     {user && !user.isGuest ? user.email : 'Local Guest · Stored on device'}
                   </p>
                 </div>

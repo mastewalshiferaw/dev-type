@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { avatarColor, initials } from '@/lib/avatar';
 
 export default function Avatar({
@@ -13,6 +13,10 @@ export default function Avatar({
   size?: 'sm' | 'md' | 'lg';
 }) {
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [src]);
 
   const sizeClasses =
     size === 'sm'
