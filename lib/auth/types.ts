@@ -4,6 +4,7 @@ export interface AuthUser {
   username: string;
   avatarUrl?: string;
   telegram?: string;
+  telegramVerified?: boolean;
   createdAt: string;
   isGuest?: boolean;
 }

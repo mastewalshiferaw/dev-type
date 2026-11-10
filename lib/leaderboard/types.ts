@@ -15,6 +15,7 @@ export interface LeaderboardEntry {
   username: string;
   avatarUrl?: string;
   telegram?: string;
+  telegramVerified?: boolean;
   wpm: number;
   accuracy: number;
   language: ScoreLanguage;

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import Avatar from '@/components/leaderboard/Avatar';
 import RankMark from '@/components/leaderboard/RankMark';
 import { leaderboardLanguageLabel } from '@/lib/languages';
@@ -14,6 +15,7 @@ export default function LeaderboardRow({
   language,
   avatarUrl,
   telegram,
+  telegramVerified = false,
   isYou = false,
   className = '',
 }: {
@@ -24,6 +26,7 @@ export default function LeaderboardRow({
   language?: ScoreLanguage | 'all' | string;
   avatarUrl?: string;
   telegram?: string;
+  telegramVerified?: boolean;
   isYou?: boolean;
   className?: string;
 }) {
@@ -89,6 +92,11 @@ export default function LeaderboardRow({
                 <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
               </svg>
               <span className="truncate hover:underline">@{cleanTelegram}</span>
+              {telegramVerified && (
+                <span title="Verified Channel Owner" className="inline-flex items-center">
+                  <CheckCircle2 size={10} className="shrink-0 text-sky-400" aria-hidden="true" />
+                </span>
+              )}
             </a>
           )}
         </div>

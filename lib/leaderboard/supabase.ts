@@ -21,6 +21,7 @@ interface ScoreRow {
   player_name: string;
   avatar_url?: string | null;
   telegram?: string | null;
+  telegram_verified?: boolean | null;
   wpm: number;
   accuracy: number;
   language: string | null;
@@ -40,6 +41,7 @@ const toEntry = (row: ScoreRow): LeaderboardEntry => ({
   username: row.player_name,
   avatarUrl: row.avatar_url ?? undefined,
   telegram: row.telegram ?? undefined,
+  telegramVerified: Boolean(row.telegram_verified),
   wpm: Math.round(row.wpm),
   accuracy: Number(row.accuracy),
   language: (isLanguageId(row.language?.toLowerCase())

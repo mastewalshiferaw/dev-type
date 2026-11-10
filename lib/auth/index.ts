@@ -61,6 +61,7 @@ export function formatSupabaseUser(user: User, profileData?: ProfileData): AuthU
     username,
     avatarUrl: profileData?.avatarUrl || (user.user_metadata?.avatar_url as string | undefined) || undefined,
     telegram: profileData?.telegram || (user.user_metadata?.telegram as string | undefined) || undefined,
+    telegramVerified: Boolean(user.user_metadata?.telegram_verified),
     createdAt: user.created_at,
     isGuest: false,
   };

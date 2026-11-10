@@ -1,7 +1,7 @@
 'use client';
 
 import * as Popover from '@radix-ui/react-popover';
-import { Check, Flame, History, ImageIcon, Loader2, LogIn, LogOut, Trash2, UserRound } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Flame, History, ImageIcon, Loader2, LogIn, LogOut, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import Avatar from '@/components/leaderboard/Avatar';
@@ -17,6 +17,7 @@ import {
   cleanTelegramChannel,
   fetchTelegramAvatar,
 } from '@/lib/profile';
+import { getTelegramVerificationCode, verifyTelegramChannel } from '@/lib/telegram';
 import { modeKeyLabel } from '@/lib/settings';
 import { calculateStreak } from '@/lib/streak';
 
@@ -39,6 +40,58 @@ function ProfileForm() {
   const [showCustomAvatarInput, setShowCustomAvatarInput] = useState(false);
   const [status, setStatus] = useState<'idle' | 'checking' | 'saving' | 'saved' | 'invalid'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const isVerifiedOwner = Boolean(
+    user &&
+    !user.isGuest &&
+    user.telegramVerified &&
+    draftTelegram &&
+    cleanTelegramChannel(user.telegram) === cleanTelegramChannel(draftTelegram)
+  );
+
+  const verificationCode = user && !user.isGuest ? getTelegramVerificationCode(user.id) : '';
+
+  const handleCopyCode = () => {
+    if (!verificationCode) return;
+    navigator.clipboard.writeText(verificationCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleVerifyChannel = async () => {
+    if (!user || user.isGuest) {
+      openAuthModal('signin');
+      return;
+    }
+    const clean = cleanTelegramChannel(draftTelegram);
+    if (!clean) return;
+    setVerifying(true);
+    setVerifyError(null);
+    try {
+      const res = await verifyTelegramChannel(clean, user.id);
+      if (res.success && res.verified) {
+        if (res.avatarUrl) {
+          setDraftAvatar(res.avatarUrl);
+          setChannelAvatar(res.avatarUrl);
+        }
+        await updateUserProfile({
+          telegram: clean,
+          ...(res.avatarUrl ? { avatarUrl: res.avatarUrl } : {}),
+        });
+        setStatus('saved');
+        setTimeout(() => setStatus('idle'), 2500);
+      } else {
+        setVerifyError(res.error || 'Verification failed. Code was not found in channel.');
+      }
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : 'Verification failed');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   // Sync draft when user or stored profile changes
   useEffect(() => {
@@ -380,6 +433,69 @@ function ProfileForm() {
           </div>
         )}
 
+        {/* Ownership Verification Status & Claim Card */}
+        {draftTelegram && isVerifiedOwner && (
+          <div className="flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-2xs font-medium text-emerald-400">
+            <CheckCircle2 size={12} className="shrink-0 text-emerald-400" />
+            <span>Verified Channel Owner (@{cleanTelegramChannel(draftTelegram)})</span>
+          </div>
+        )}
+
+        {draftTelegram && !isVerifiedOwner && cleanTelegramChannel(draftTelegram).length >= 4 && (
+          <div className="flex flex-col gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-2.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-2xs font-bold text-sky-400">
+                <ShieldCheck size={12} />
+                Ownership Verification
+              </span>
+              <span className="text-3xs text-muted">Anti-Spoofing</span>
+            </div>
+            {!user || user.isGuest ? (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-3xs leading-relaxed text-muted">
+                  Sign in to verify and lock your channel handle so no one else can claim it.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('signin')}
+                  className="self-start inline-flex h-6 items-center justify-center rounded bg-accent-fill px-2 text-2xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
+                >
+                  Sign In to Verify
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-3xs leading-relaxed text-muted">
+                  Post this one-time code in <strong className="text-ink">@{cleanTelegramChannel(draftTelegram)}</strong> to prove ownership. (You can delete the post right after verifying):
+                </p>
+                <div className="flex items-center gap-1.5 rounded border border-line bg-canvas/80 px-2 py-1">
+                  <code className="flex-1 font-mono text-xs font-bold text-accent select-all">{verificationCode}</code>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-3xs font-semibold text-muted transition-colors hover:text-ink"
+                  >
+                    {copiedCode ? <Check size={10} className="text-accent" /> : <Copy size={10} />}
+                    {copiedCode ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                {verifyError && (
+                  <p className="text-3xs font-medium leading-tight text-danger">{verifyError}</p>
+                )}
+                <button
+                  type="button"
+                  disabled={verifying}
+                  onClick={handleVerifyChannel}
+                  className="inline-flex h-7 items-center justify-center gap-1.5 rounded bg-sky-500 px-3 text-2xs font-bold text-white transition-colors hover:bg-sky-400 disabled:opacity-50"
+                >
+                  {verifying ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                  {verifying ? 'Checking channel feed...' : 'Verify & Claim Channel'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {channelFetchStatus === 'not-found' && cleanTelegramChannel(draftTelegram).length >= 4 && (
           <p className="text-2xs text-muted">Channel lookup failed. Try checking the handle spelling.</p>
         )}
@@ -469,6 +585,11 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
                         <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
                       </svg>
                       @{cleanTelegramChannel(effectiveTelegram)}
+                      {Boolean(user?.telegramVerified) && (
+                        <span title="Verified Channel Owner" className="inline-flex items-center">
+                          <CheckCircle2 size={10} className="shrink-0 text-sky-400" aria-hidden="true" />
+                        </span>
+                      )}
                     </a>
                   )}
                   <p className="text-2xs text-muted truncate">
