@@ -2,362 +2,361 @@ import type { SnippetSet } from './types';
 
 export const python: SnippetSet = {
   short: [
-    `def match_response(status_code: int) -> str:
-    match status_code:
-        case 200 | 201:
-            return "Success"
-        case 400 | 422:
-            return "Client Validation Error"
-        case 401 | 403:
-            return "Authentication Required"
-        case 404:
-            return "Resource Not Found"
+    `@dataclass(slots=True, kw_only=True)
+class UserProfile:
+    id: UUID = field(default_factory=uuid4)
+    username: str
+    email: str
+    is_active: bool = True
+    role: str = "developer"`,
+    `@router.get("/users/{user_id}", response_model=UserResponse)
+async def get_user_details(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user`,
+    `def batch_items(items: list[T], size: int) -> Generator[list[T], None, None]:
+    for i in range(0, len(items), size):
+        yield items[i : i + size]`,
+    `def deep_merge(base: dict, update: dict) -> dict:
+    result = base.copy()
+    for key, value in update.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result`,
+    `def parse_command(payload: dict[str, Any]) -> str:
+    match payload:
+        case {"action": "jump", "power": p} if p > 50:
+            return "high_jump"
+        case {"action": "run", "speed": s}:
+            return f"running_at_{s}"
+        case {"action": "idle"}:
+            return "resting"
         case _:
-            return "Unhandled Status"`,
-    `from contextlib import contextmanager
-import time
-
-@contextmanager
-def execution_timer(label: str):
-    start = time.perf_counter()
+            return "unknown_action"`,
+    `async def fetch_all(urls: list[str], client: httpx.AsyncClient) -> list[dict]:
+    tasks = [client.get(url) for url in urls]
+    responses = await asyncio.gather(*tasks, return_exceptions=True)
+    return [r.json() for r in responses if isinstance(r, httpx.Response) and r.is_success]`,
+    `def memoize(func: Callable[..., Any]) -> Callable[..., Any]:
+    cache: dict[tuple, Any] = {}
+    @wraps(func)
+    def wrapper(*args):
+        if args not in cache:
+            cache[args] = func(*args)
+        return cache[args]
+    return wrapper`,
+    `def read_config(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)`,
+    `def slugify(text: str) -> str:
+    text = re.sub(r"[^\\w\\s-]", "", text.strip().lower())
+    return re.sub(r"[-\\s]+", "-", text)`,
+    `class TaskStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"`,
+    `def clamp(val: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(val, maximum))`,
+    `@contextmanager
+def temporary_env(key: str, value: str):
+    original = os.environ.get(key)
+    os.environ[key] = value
     try:
         yield
     finally:
-        elapsed = (time.perf_counter() - start) * 1000
-        print(f"[{label}] Finished in {elapsed:.2f}ms")`,
-    `from dataclasses import dataclass, field
-
-@dataclass(slots=True, frozen=True)
-class SessionConfig:
-    duration_seconds: int = 60
-    language: str = "python"
-    allowed_tags: list[str] = field(default_factory=lambda: ["algorithms", "web"])
-    require_punctuation: bool = True`,
-    `from itertools import chain
-
-def flatten_matrix(matrix: list[list[int]]) -> list[int]:
-    return list(chain.from_iterable(matrix))
-
-evens = [x for x in flatten_matrix([[1, 2], [3, 4], [5, 6]]) if x % 2 == 0]`,
-    `def calculate_metrics(typed_chars: int, errors: int, elapsed_sec: float) -> dict[str, float]:
-    if elapsed_sec <= 0:
-        return {"wpm": 0.0, "acc": 100.0}
-    gross_wpm = (typed_chars / 5.0) / (elapsed_sec / 60.0)
-    net_wpm = max(0.0, gross_wpm - (errors / (elapsed_sec / 60.0)))
-    accuracy = max(0.0, ((typed_chars - errors) / typed_chars) * 100) if typed_chars else 100.0
-    return {"wpm": round(net_wpm, 1), "acc": round(accuracy, 1)}`,
-    `from typing import TypeVar, Sequence
-
-T = TypeVar("T")
-
-def chunk_sequence(seq: Sequence[T], chunk_size: int) -> list[Sequence[T]]:
-    return [seq[i : i + chunk_size] for i in range(0, len(seq), chunk_size)]`,
+        if original is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = original`,
   ],
   medium: [
-    `import functools
-import random
-import time
-from typing import Callable, TypeVar
+    `class Debouncer:
+    def __init__(self, wait_seconds: float):
+        self.wait = wait_seconds
+        self._timer: threading.Timer | None = None
 
-R = TypeVar("R")
+    def debounce(self, fn: Callable[[], None]) -> None:
+        if self._timer is not None:
+            self._timer.cancel()
+        self._timer = threading.Timer(self.wait, fn)
+        self._timer.start()`,
+    `def extract_bearer_token(auth_header: str | None) -> str:
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise ValueError("Missing or invalid Authorization header")
+    token = auth_header.removeprefix("Bearer ").strip()
+    if not token or token.count(".") != 2:
+        raise ValueError("Malformed JWT token structure")
+    return token`,
+    `class TreeNode:
+    def __init__(self, val: int, left: "TreeNode | None" = None, right: "TreeNode | None" = None):
+        self.val = val
+        self.left = left
+        self.right = right
 
-def retry_with_backoff(max_retries: int = 3, base_delay: float = 0.5):
-    def decorator(func: Callable[..., R]) -> Callable[..., R]:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> R:
-            delay = base_delay
-            for attempt in range(1, max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as err:
-                    if attempt == max_retries:
-                        raise err
-                    jitter = random.uniform(0.8, 1.2)
-                    time.sleep(delay * jitter)
-                    delay *= 2
-            raise RuntimeError("Unreachable")
-        return wrapper
-    return decorator`,
-    `import hashlib
-from pathlib import Path
-
-def compute_checksums(directory: Path, pattern: str = "*.py") -> dict[str, str]:
-    hashes = {}
-    for filepath in sorted(directory.rglob(pattern)):
-        if filepath.is_file():
-            hasher = hashlib.sha256()
-            with filepath.open("rb") as f:
-                while chunk := f.read(65536):
-                    hasher.update(chunk)
-            hashes[filepath.name] = hasher.hexdigest()
-    return hashes`,
-    `class CircularBuffer:
-    def __init__(self, capacity: int):
-        self.capacity = capacity
-        self.buffer = [None] * capacity
-        self.head = 0
-        self.tail = 0
-        self.size = 0
-
-    def append(self, item):
-        self.buffer[self.tail] = item
-        self.tail = (self.tail + 1) % self.capacity
-        if self.size < self.capacity:
-            self.size += 1
-        else:
-            self.head = (self.head + 1) % self.capacity
-
-    def get_all(self):
-        return [self.buffer[(self.head + i) % self.capacity] for i in range(self.size)]`,
-    `import asyncio
-from typing import Any
-
-async def fetch_api_endpoint(url: str, session: Any, timeout: float = 5.0) -> dict[str, Any]:
+def inorder_traversal(root: TreeNode | None) -> list[int]:
+    result: list[int] = []
+    def traverse(node: TreeNode | None):
+        if node:
+            traverse(node.left)
+            result.append(node.val)
+            traverse(node.right)
+    traverse(root)
+    return result`,
+    `def get_env(key: str, default: T, caster: Callable[[str], T] = str) -> T:
+    val = os.getenv(key)
+    if val is None or val.strip() == "":
+        return default
     try:
-        async with asyncio.timeout(timeout):
-            async with session.get(url) as response:
-                response.raise_for_status()
-                return await response.json()
-    except TimeoutError:
-        return {"error": f"Request to {url} timed out"}
-    except Exception as exc:
-        return {"error": str(exc)}`,
-    `from bisect import bisect_left
-from typing import Sequence, TypeVar
+        return caster(val.strip())
+    except (ValueError, TypeError):
+        return default`,
+    `class MovingAverage:
+    def __init__(self, window_size: int):
+        self.size = window_size
+        self.queue: deque[float] = deque()
+        self.total = 0.0
 
-T = TypeVar("T")
+    def next(self, val: float) -> float:
+        self.queue.append(val)
+        self.total += val
+        if len(self.queue) > self.size:
+            self.total -= self.queue.popleft()
+        return round(self.total / len(self.queue), 2)`,
+    `def backoff_delay(attempt: int, base: float = 0.2, max_delay: float = 10.0) -> float:
+    exp_delay = base * (2 ** attempt)
+    jitter = random.uniform(0.5, 1.5)
+    return min(max_delay, exp_delay * jitter)`,
+    `class ExpiringCache:
+    def __init__(self):
+        self._data: dict[str, tuple[Any, float]] = {}
+        self._lock = threading.Lock()
 
-def binary_search(elements: Sequence[T], target: T) -> int | None:
-    index = bisect_left(elements, target)
-    if index < len(elements) and elements[index] == target:
-        return index
-    return None`,
-    `from collections import Counter
-import re
+    def set(self, key: str, val: Any, ttl_seconds: float) -> None:
+        with self._lock:
+            self._data[key] = (val, time.monotonic() + ttl_seconds)
 
-def analyze_word_frequency(text: str, top_n: int = 10) -> list[tuple[str, int]]:
-    tokens = re.findall(r"\\b[a-zA-Z_][a-zA-Z0-9_]*\\b", text.lower())
-    counter = Counter(tokens)
-    return counter.most_common(top_n)`,
+    def get(self, key: str) -> Any | None:
+        with self._lock:
+            if key not in self._data:
+                return None
+            val, expiry = self._data[key]
+            if time.monotonic() > expiry:
+                del self._data[key]
+                return None
+            return val`,
+    `class AsyncEventEmitter:
+    def __init__(self):
+        self._subscribers: dict[str, list[Callable[..., Coroutine]]] = defaultdict(list)
+
+    def on(self, event: str, handler: Callable[..., Coroutine]) -> None:
+        self._subscribers[event].append(handler)
+
+    async def emit(self, event: str, *args, **kwargs) -> None:
+        tasks = [handler(*args, **kwargs) for handler in self._subscribers.get(event, [])]
+        if tasks:
+            await asyncio.gather(*tasks)`,
+    `def stream_csv_records(filepath: Path) -> Generator[dict[str, str], None, None]:
+    with filepath.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if any(row.values()):
+                yield {k.strip(): v.strip() for k, v in row.items() if k}`,
+    `def quicksort(arr: list[int]) -> list[int]:
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quicksort(left) + middle + quicksort(right)`,
   ],
   long: [
-    `import threading
-import time
+    `class AsyncWorkerPool:
+    def __init__(self, concurrency: int = 5):
+        self.semaphore = asyncio.Semaphore(concurrency)
+        self.results: list[dict[str, Any]] = []
 
-class TokenBucketRateLimiter:
-    def __init__(self, capacity: float, refill_rate_per_sec: float):
+    async def execute_task(self, task_id: int, payload: dict) -> dict[str, Any]:
+        async with self.semaphore:
+            await asyncio.sleep(0.05)
+            record = {"task_id": task_id, "status": "processed", "data": payload}
+            self.results.append(record)
+            return record
+
+    async def run_batch(self, items: list[dict]) -> list[dict[str, Any]]:
+        tasks = [self.execute_task(idx, item) for idx, item in enumerate(items)]
+        return await asyncio.gather(*tasks)`,
+    `class PriorityTaskQueue:
+    def __init__(self):
+        self._heap: list[tuple[int, int, str]] = []
+        self._counter = 0
+
+    def push(self, task: str, priority: int) -> None:
+        heapq.heappush(self._heap, (priority, self._counter, task))
+        self._counter += 1
+
+    def pop(self) -> str | None:
+        if not self._heap:
+            return None
+        _, _, task = heapq.heappop(self._heap)
+        return task
+
+    def peek(self) -> str | None:
+        return self._heap[0][2] if self._heap else None
+
+    def __len__(self) -> int:
+        return len(self._heap)`,
+    `def find_shortest_path(graph: dict[str, list[str]], start: str, target: str) -> list[str] | None:
+    if start == target:
+        return [start]
+    visited: set[str] = {start}
+    queue: deque[list[str]] = deque([[start]])
+
+    while queue:
+        path = queue.popleft()
+        current_node = path[-1]
+
+        for neighbor in graph.get(current_node, []):
+            if neighbor not in visited:
+                new_path = path + [neighbor]
+                if neighbor == target:
+                    return new_path
+                visited.add(neighbor)
+                queue.append(new_path)
+    return None`,
+    `class DatabaseTransaction:
+    def __init__(self, connection):
+        self.conn = connection
+        self.is_active = False
+
+    def __enter__(self):
+        self.conn.begin()
+        self.is_active = True
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.conn.rollback()
+            print(f"Transaction aborted due to error: {exc_val}")
+            self.is_active = False
+            return False
+        self.conn.commit()
+        self.is_active = False
+        return True`,
+    `class JsonLinesStreamer:
+    def __init__(self, filepath: Path, required_keys: set[str]):
+        self.path = filepath
+        self.required = required_keys
+        self.valid_count = 0
+        self.skipped_count = 0
+
+    def parse_stream(self) -> Generator[dict[str, Any], None, None]:
+        with self.path.open("r", encoding="utf-8") as file:
+            for line_no, raw_line in enumerate(file, start=1):
+                clean = raw_line.strip()
+                if not clean or clean.startswith("#"):
+                    continue
+                try:
+                    obj = json.loads(clean)
+                    if isinstance(obj, dict) and self.required.issubset(obj.keys()):
+                        self.valid_count += 1
+                        yield obj
+                    else:
+                        self.skipped_count += 1
+                except json.JSONDecodeError:
+                    self.skipped_count += 1`,
+    `class TokenBucket:
+    def __init__(self, capacity: int, fill_rate: float):
         self.capacity = float(capacity)
         self.tokens = float(capacity)
-        self.refill_rate = float(refill_rate_per_sec)
-        self.last_update = time.monotonic()
+        self.fill_rate = fill_rate
+        self.last_check = time.monotonic()
         self.lock = threading.Lock()
 
-    def allow_request(self, tokens_needed: float = 1.0) -> bool:
+    def consume(self, amount: float = 1.0) -> bool:
         with self.lock:
             now = time.monotonic()
-            elapsed = now - self.last_update
-            self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)
-            self.last_update = now
+            elapsed = now - self.last_check
+            self.tokens = min(self.capacity, self.tokens + elapsed * self.fill_rate)
+            self.last_check = now
 
-            if self.tokens >= tokens_needed:
-                self.tokens -= tokens_needed
+            if self.tokens >= amount:
+                self.tokens -= amount
                 return True
             return False`,
-    `from typing import Generic, TypeVar
-
-K = TypeVar("K")
-V = TypeVar("V")
-
-class Node(Generic[K, V]):
-    def __init__(self, key: K, val: V):
-        self.key = key
-        self.val = val
-        self.prev: Node[K, V] | None = None
-        self.next: Node[K, V] | None = None
-
-class LRUCache(Generic[K, V]):
-    def __init__(self, capacity: int):
-        self.capacity = capacity
-        self.cache: dict[K, Node[K, V]] = {}
-        self.head = Node(None, None)  # type: ignore
-        self.tail = Node(None, None)  # type: ignore
-        self.head.next = self.tail
-        self.tail.prev = self.head
-
-    def _remove(self, node: Node[K, V]) -> None:
-        if node.prev and node.next:
-            node.prev.next = node.next
-            node.next.prev = node.prev
-
-    def _add(self, node: Node[K, V]) -> None:
-        node.prev = self.head
-        node.next = self.head.next
-        if self.head.next:
-            self.head.next.prev = node
-        self.head.next = node`,
-    `import asyncio
-
-async def worker_node(worker_id: int, queue: asyncio.Queue[int], output: list[int]):
-    while True:
-        try:
-            item = await queue.get()
-            # Simulate CPU or network processing
-            processed = item * item + 3
-            output.append(processed)
-            queue.task_done()
-        except asyncio.CancelledError:
-            break
-
-async def process_pipeline(inputs: list[int], num_workers: int = 4) -> list[int]:
-    queue: asyncio.Queue[int] = asyncio.Queue()
-    output: list[int] = []
-
-    workers = [
-        asyncio.create_task(worker_node(i, queue, output))
-        for i in range(num_workers)
-    ]
-
-    for item in inputs:
-        await queue.put(item)
-
-    await queue.join()
-    for worker in workers:
-        worker.cancel()
-    await asyncio.gather(*workers, return_exceptions=True)
-    return output`,
-    `class DependencyContainer:
+    `class EventDispatcher:
     def __init__(self):
-        self._services = {}
-        self._factories = {}
+        self._listeners: dict[str, list[Callable[[Any], None]]] = defaultdict(list)
 
-    def register_singleton(self, service_type: type, instance: object) -> None:
-        self._services[service_type] = instance
+    def subscribe(self, event_name: str, callback: Callable[[Any], None]) -> Callable[[], None]:
+        self._listeners[event_name].append(callback)
+        def unsubscribe():
+            if callback in self._listeners[event_name]:
+                self._listeners[event_name].remove(callback)
+        return unsubscribe
 
-    def register_factory(self, service_type: type, factory_func) -> None:
-        self._factories[service_type] = factory_func
+    def dispatch(self, event_name: str, payload: Any = None) -> int:
+        callbacks = list(self._listeners.get(event_name, []))
+        for callback in callbacks:
+            callback(payload)
+        return len(callbacks)`,
+    `class Pipeline:
+    def __init__(self, *steps: Callable[[Any], Any]):
+        self.steps = steps
 
-    def resolve(self, service_type: type):
-        if service_type in self._services:
-            return self._services[service_type]
-        if service_type in self._factories:
-            return self._factories[service_type](self)
-        raise KeyError(f"Service {service_type.__name__} not registered")`,
-    `class PolishNotationEvaluator:
-    OPERATORS = {
-        "+": lambda a, b: a + b,
-        "-": lambda a, b: a - b,
-        "*": lambda a, b: a * b,
-        "/": lambda a, b: int(a / b),
-    }
+    def execute(self, initial_data: Any) -> Any:
+        current = initial_data
+        for step in self.steps:
+            current = step(current)
+        return current
 
-    def evaluate(self, tokens: list[str]) -> int:
-        stack: list[int] = []
-        for token in tokens:
-            if token in self.OPERATORS:
-                b = stack.pop()
-                a = stack.pop()
-                result = self.OPERATORS[token](a, b)
-                stack.append(result)
-            else:
-                stack.append(int(token))
-        return stack[0]`,
-    `from dataclasses import dataclass
+    def pipe(self, step: Callable[[Any], Any]) -> "Pipeline":
+        return Pipeline(*self.steps, step)`,
+    `def bisect_find_first(items: list[T], predicate: Callable[[T], bool]) -> int | None:
+    low = 0
+    high = len(items) - 1
+    result = None
 
-@dataclass
-class TypingSnapshot:
-    timestamp_ms: float
-    cursor_position: int
-    raw_characters_typed: int
-    unforced_errors: int
+    while low <= high:
+        mid = (low + high) // 2
+        if predicate(items[mid]):
+            result = mid
+            high = mid - 1
+        else:
+            low = mid + 1
+    return result`,
+    `@dataclass(slots=True)
+class TypingStats:
+    wpm: float
+    raw_wpm: float
+    accuracy_percent: float
 
-class SessionTelemetry:
-    def __init__(self):
-        self.snapshots: list[TypingSnapshot] = []
+def compute_typing_metrics(
+    keystrokes: list[tuple[float, bool]],
+    total_seconds: float
+) -> TypingStats:
+    if total_seconds <= 0 or not keystrokes:
+        return TypingStats(0.0, 0.0, 100.0)
 
-    def log_keystroke(self, pos: int, total_chars: int, errors: int, ts: float):
-        self.snapshots.append(TypingSnapshot(ts, pos, total_chars, errors))
+    total_chars = len(keystrokes)
+    correct_chars = sum(1 for _, is_correct in keystrokes if is_correct)
+    errors = total_chars - correct_chars
 
-    def compute_acceleration(self) -> list[float]:
-        if len(self.snapshots) < 2:
-            return []
-        rates = []
-        for i in range(1, len(self.snapshots)):
-            prev, curr = self.snapshots[i - 1], self.snapshots[i]
-            delta_t = (curr.timestamp_ms - prev.timestamp_ms) / 1000.0
-            if delta_t > 0:
-                chars_per_sec = (curr.raw_characters_typed - prev.raw_characters_typed) / delta_t
-                rates.append(chars_per_sec * 12.0)  # Convert to WPM
-        return rates`,
-    `from collections import OrderedDict
-from functools import wraps
+    minutes = total_seconds / 60.0
+    raw_wpm = (total_chars / 5.0) / minutes
+    net_wpm = max(0.0, (total_chars / 5.0 - errors) / minutes)
+    accuracy = (correct_chars / total_chars) * 100.0
 
-class LRUCache:
-    def __init__(self, capacity: int = 128):
-        self.capacity = capacity
-        self.cache: OrderedDict[str, object] = OrderedDict()
-
-    def get(self, key: str) -> object | None:
-        if key not in self.cache:
-            return None
-        self.cache.move_to_end(key)
-        return self.cache[key]
-
-    def put(self, key: str, value: object) -> None:
-        if key in self.cache:
-            self.cache.move_to_end(key)
-        self.cache[key] = value
-        if len(self.cache) > self.capacity:
-            self.cache.popitem(last=False)`,
-    `import asyncio
-import time
-from collections import deque
-
-class SlidingWindowLimiter:
-    def __init__(self, max_calls: int, window_seconds: float):
-        self.max_calls = max_calls
-        self.window = window_seconds
-        self.timestamps: deque[float] = deque()
-        self.lock = asyncio.Lock()
-
-    async def acquire(self) -> bool:
-        async with self.lock:
-            now = time.monotonic()
-            while self.timestamps and now - self.timestamps[0] > self.window:
-                self.timestamps.popleft()
-            if len(self.timestamps) < self.max_calls:
-                self.timestamps.append(now)
-                return True
-            return False`,
-    `class TrieAutocomplete:
-    def __init__(self):
-        self.children: dict[str, TrieAutocomplete] = {}
-        self.is_word = False
-        self.frequency = 0
-
-    def insert(self, word: str, score: int = 1) -> None:
-        node = self
-        for char in word:
-            if char not in node.children:
-                node.children[char] = TrieAutocomplete()
-            node = node.children[char]
-        node.is_word = True
-        node.frequency += score
-
-    def search_prefix(self, prefix: str) -> list[str]:
-        node = self
-        for char in prefix:
-            if char not in node.children:
-                return []
-            node = node.children[char]
-        results: list[tuple[str, int]] = []
-        self._collect(node, prefix, results)
-        results.sort(key=lambda item: item[1], reverse=True)
-        return [w for w, _ in results[:5]]
-
-    def _collect(self, node: 'TrieAutocomplete', path: str, results: list) -> None:
-        if node.is_word:
-            results.append((path, node.frequency))
-        for char, child in node.children.items():
-            self._collect(child, path + char, results)`,
+    return TypingStats(
+        wpm=round(net_wpm, 1),
+        raw_wpm=round(raw_wpm, 1),
+        accuracy_percent=round(accuracy, 1)
+    )`,
   ],
 };
