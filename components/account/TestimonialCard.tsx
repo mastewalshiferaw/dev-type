@@ -235,7 +235,7 @@ export default function TestimonialCard({ user, bestWpm, totalRuns, onOpenAuth }
             </blockquote>
             <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-3">
               <div className="flex items-center gap-2.5">
-                <Avatar name={user?.username || 'User'} size="sm" />
+                <Avatar name={user?.username || 'User'} channel={user?.telegram} src={user?.avatarUrl} size="sm" />
                 <div className="flex flex-col">
                   <span className="flex items-center gap-1 text-xs font-semibold text-ink">
                     {user?.username}

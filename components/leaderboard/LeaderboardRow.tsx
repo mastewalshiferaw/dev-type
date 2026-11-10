@@ -48,7 +48,7 @@ export default function LeaderboardRow({
       )}
       <div className="flex min-w-0 items-center gap-3">
         <RankMark rank={rank} />
-        <Avatar name={username} src={avatarUrl} />
+        <Avatar name={username} channel={cleanTelegram} src={avatarUrl} />
         <div className="min-w-0 flex flex-col justify-center">
           <div className="group/name relative flex items-center gap-1.5">
             <span

@@ -271,8 +271,17 @@ export function initAuth() {
   if (typeof window !== 'undefined') {
     const hash = window.location.hash || '';
     const search = window.location.search || '';
-    if (hash.includes('type=recovery') || search.includes('recovery=true')) {
-      openAuthModal('update_password');
+    const searchParams = new URLSearchParams(search);
+    const hasRecovery =
+      hash.includes('type=recovery') ||
+      search.includes('recovery=true') ||
+      searchParams.has('code') ||
+      searchParams.has('token_hash');
+
+    if (hasRecovery) {
+      resolveRecoverySession().finally(() => {
+        openAuthModal('update_password');
+      });
     }
   }
 
@@ -480,17 +489,142 @@ export async function signUpWithEmail(
   }
 }
 
+/**
+ * Resolves a password recovery link session from URL params (PKCE code, token_hash, or hash tokens).
+ * Ensures an active session exists before the user is asked to enter a new password.
+ */
+export async function resolveRecoverySession(): Promise<{ success: boolean; error?: string }> {
+  if (typeof window === 'undefined') return { success: false, error: 'Window not available' };
+  const supabase = getSupabase();
+  if (!supabase) return { success: false, error: 'Supabase is not configured' };
+
+  // 1. Check if we already have an active valid session
+  const { data: initialData } = await supabase.auth.getSession();
+  if (initialData?.session?.user) {
+    return { success: true };
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  const hashParams = new URLSearchParams(hash);
+
+  const errorDesc = searchParams.get('error_description') || hashParams.get('error_description');
+  if (errorDesc) {
+    return { success: false, error: decodeURIComponent(errorDesc).replace(/\+/g, ' ') };
+  }
+
+  const code = searchParams.get('code');
+  const tokenHash = searchParams.get('token_hash');
+  const type = searchParams.get('type') || hashParams.get('type');
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+
+  // 2. PKCE authorization code exchange
+  if (code) {
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      if (data.session) {
+        // Clean URL to prevent re-using code on refresh
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('code');
+        cleanUrl.searchParams.delete('recovery');
+        window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
+        return { success: true };
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to verify recovery code' };
+    }
+  }
+
+  // 3. Verify OTP token_hash
+  if (tokenHash && (type === 'recovery' || !type)) {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'recovery',
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      if (data.session) {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('token_hash');
+        cleanUrl.searchParams.delete('type');
+        cleanUrl.searchParams.delete('recovery');
+        window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
+        return { success: true };
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to verify recovery token' };
+    }
+  }
+
+  // 4. Set session from hash access_token
+  if (accessToken && refreshToken) {
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      if (data.session) {
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        return { success: true };
+      }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to initialize session' };
+    }
+  }
+
+  // 5. Final check after any asynchronous detection
+  const { data: finalData } = await supabase.auth.getSession();
+  if (finalData?.session?.user) {
+    return { success: true };
+  }
+
+  return {
+    success: false,
+    error: 'Your password reset link is invalid or has expired. Please request a new recovery link.',
+  };
+}
+
 export async function requestPasswordReset(
   email: string
 ): Promise<{ error?: string; success?: boolean }> {
-  const supabase = getSupabase();
-  if (!supabase) {
-    return { error: 'Supabase is not configured' };
-  }
-
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
     return { error: 'Please enter a valid email address' };
+  }
+
+  // 1. Try server-side endpoint first for robust delivery & rate-limit handling
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail }),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success) {
+      return { success: true };
+    }
+
+    if (data?.error) {
+      return { error: data.error };
+    }
+  } catch {
+    // If API route is unreachable, fall back to direct Supabase client call
+  }
+
+  // 2. Client-side fallback
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { error: 'Supabase is not configured' };
   }
 
   try {
@@ -501,6 +635,12 @@ export async function requestPasswordReset(
     });
 
     if (error) {
+      if (error.message.includes('Error sending recovery email')) {
+        return {
+          error:
+            'Email service rate limit reached or delivery temporarily unavailable. Please wait a few minutes before trying again.',
+        };
+      }
       return { error: error.message };
     }
 
@@ -526,12 +666,25 @@ export async function updateUserPassword(
     return { error: 'Password cannot exceed 72 characters' };
   }
 
+  // Make sure a session exists before attempting updateUser
+  const recoverySession = await resolveRecoverySession();
+  if (!recoverySession.success) {
+    return {
+      error: recoverySession.error || 'Your recovery session has expired. Please request a new recovery link.',
+    };
+  }
+
   try {
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
 
     if (error) {
+      if (error.message.includes('Auth session missing')) {
+        return {
+          error: 'Your password reset link has expired or was already used. Please request a new recovery link.',
+        };
+      }
       return { error: error.message };
     }
 

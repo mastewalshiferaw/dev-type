@@ -13,7 +13,13 @@ export const TG_CHANNEL_PATTERN = /^[a-zA-Z0-9_]{4,32}$/;
 
 export async function fetchTelegramAvatar(
   channelInput: string
-): Promise<{ avatarUrl: string | null; title?: string | null; error?: string }> {
+): Promise<{
+  avatarUrl: string | null;
+  title?: string | null;
+  hasCustomPhoto?: boolean;
+  initials?: string | null;
+  error?: string;
+}> {
   const channel = cleanTelegramChannel(channelInput);
   if (!channel) return { avatarUrl: null };
   try {
@@ -25,6 +31,8 @@ export async function fetchTelegramAvatar(
     return {
       avatarUrl: data.avatarUrl || null,
       title: data.title || null,
+      hasCustomPhoto: Boolean(data.hasCustomPhoto),
+      initials: data.initials || null,
       error: data.error,
     };
   } catch (err) {

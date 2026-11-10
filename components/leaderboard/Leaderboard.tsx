@@ -208,7 +208,12 @@ export default function Leaderboard({ onEditProfile }: { onEditProfile: () => vo
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="w-8 pl-1 text-xs text-muted tabular-nums">{you ? `#${you.rank}` : '–'}</span>
             {username ? (
-              <Avatar name={username} size="sm" src={effectiveAvatarUrl || you?.avatarUrl} />
+              <Avatar
+                name={username}
+                channel={effectiveTelegram || you?.telegram}
+                size="sm"
+                src={effectiveAvatarUrl || you?.avatarUrl}
+              />
             ) : (
               <span
                 aria-hidden

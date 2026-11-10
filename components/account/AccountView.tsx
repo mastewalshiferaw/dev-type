@@ -107,7 +107,7 @@ export default function AccountView() {
       <div className="rounded-2xl border border-line bg-surface p-5 shadow-panel sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
-            <Avatar name={user?.username || 'Guest'} src={user?.avatarUrl} size="md" />
+            <Avatar name={user?.username || 'Guest'} channel={user?.telegram} src={user?.avatarUrl} size="md" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-ink">{user?.username || 'Guest Coder'}</h1>

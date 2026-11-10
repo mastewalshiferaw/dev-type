@@ -1,7 +1,7 @@
 'use client';
 
 import * as Popover from '@radix-ui/react-popover';
-import { Check, Flame, History, ImageIcon, Loader2, LogIn, LogOut, Send, Trash2, UserRound } from 'lucide-react';
+import { Check, Flame, History, ImageIcon, Loader2, LogIn, LogOut, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import AuthModal from '@/components/auth/AuthModal';
@@ -34,6 +34,8 @@ function ProfileForm() {
   const [draftTelegram, setDraftTelegram] = useState(telegram || '');
   const [channelAvatar, setChannelAvatar] = useState<string | null>(null);
   const [channelTitle, setChannelTitle] = useState<string | null>(null);
+  const [channelHasCustomPhoto, setChannelHasCustomPhoto] = useState(false);
+  const [channelInitials, setChannelInitials] = useState<string | null>(null);
   const [channelFetchStatus, setChannelFetchStatus] = useState<'idle' | 'fetching' | 'found' | 'not-found'>('idle');
   const [showCustomAvatarInput, setShowCustomAvatarInput] = useState(false);
   const [status, setStatus] = useState<'idle' | 'checking' | 'saving' | 'saved' | 'invalid'>('idle');
@@ -94,6 +96,8 @@ function ProfileForm() {
     if (!clean || clean.length < 4) {
       setChannelAvatar(null);
       setChannelTitle(null);
+      setChannelHasCustomPhoto(false);
+      setChannelInitials(null);
       setChannelFetchStatus('idle');
       return;
     }
@@ -108,6 +112,8 @@ function ProfileForm() {
         if (res.avatarUrl) {
           setChannelAvatar(res.avatarUrl);
           setChannelTitle(res.title || null);
+          setChannelHasCustomPhoto(Boolean(res.hasCustomPhoto));
+          setChannelInitials(res.initials || null);
           setChannelFetchStatus('found');
           // Automatically set draftAvatar if the user hasn't selected another avatar or was using channel avatar
           setDraftAvatar((prev) => {
@@ -119,6 +125,8 @@ function ProfileForm() {
         } else {
           setChannelAvatar(null);
           setChannelTitle(null);
+          setChannelHasCustomPhoto(false);
+          setChannelInitials(null);
           setChannelFetchStatus('not-found');
         }
       } catch {
@@ -216,7 +224,11 @@ function ProfileForm() {
             <button
               type="button"
               onClick={() => setDraftAvatar(draftAvatar === channelAvatar ? '' : channelAvatar)}
-              title={channelTitle ? `Use Telegram Channel photo (${channelTitle})` : 'Use Telegram Channel photo'}
+              title={
+                channelTitle
+                  ? `Use Telegram Channel ${channelHasCustomPhoto ? 'photo' : 'letter avatar'} (${channelTitle})`
+                  : `Use Telegram Channel ${channelHasCustomPhoto ? 'photo' : 'letter avatar'}`
+              }
               className={`relative size-8 shrink-0 overflow-hidden rounded-full ring-2 transition-all ${
                 draftAvatar === channelAvatar
                   ? 'ring-accent ring-offset-2 ring-offset-surface scale-105'
@@ -224,9 +236,9 @@ function ProfileForm() {
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={channelAvatar} alt="Telegram channel photo" className="size-full object-cover" />
+              <img src={channelAvatar} alt="Telegram channel avatar" className="size-full object-cover" />
               <span
-                title="Channel Photo"
+                title={channelHasCustomPhoto ? 'Channel Photo' : 'Channel Letter Avatar'}
                 className="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center rounded-full bg-sky-500 text-white"
               >
                 <svg className="size-2 fill-current" viewBox="0 0 24 24" aria-hidden="true">
@@ -348,7 +360,11 @@ function ProfileForm() {
                 <span className="text-2xs font-semibold text-ink truncate">
                   {channelTitle || `@${cleanTelegramChannel(draftTelegram)}`}
                 </span>
-                <span className="text-3xs text-sky-400">Channel photo detected</span>
+                <span className="text-3xs text-sky-400">
+                  {channelHasCustomPhoto
+                    ? 'Channel photo detected'
+                    : `Channel letter avatar (${channelInitials || 'initials'})`}
+                </span>
               </div>
             </div>
             <button
@@ -360,13 +376,13 @@ function ProfileForm() {
                   : 'bg-sky-500 text-white hover:bg-sky-400'
               }`}
             >
-              {draftAvatar === channelAvatar ? 'Active' : 'Apply Photo'}
+              {draftAvatar === channelAvatar ? 'Active' : channelHasCustomPhoto ? 'Apply Photo' : 'Apply Avatar'}
             </button>
           </div>
         )}
 
         {channelFetchStatus === 'not-found' && cleanTelegramChannel(draftTelegram).length >= 4 && (
-          <p className="text-2xs text-muted">No custom photo found on this channel.</p>
+          <p className="text-2xs text-muted">Channel lookup failed. Try checking the handle spelling.</p>
         )}
 
         <p className="text-2xs text-muted">
@@ -420,7 +436,7 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
           className="flex size-9 items-center justify-center rounded-full text-muted transition-ui hover:bg-raised hover:text-ink"
         >
           {username ? (
-            <Avatar name={username} src={effectiveAvatar} size="sm" />
+            <Avatar name={username} channel={effectiveTelegram} src={effectiveAvatar} size="sm" />
           ) : (
             <UserRound size={18} aria-hidden />
           )}
@@ -436,7 +452,7 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {username ? (
-                  <Avatar name={username} src={effectiveAvatar} />
+                  <Avatar name={username} channel={effectiveTelegram} src={effectiveAvatar} />
                 ) : (
                   <span className="flex size-8 items-center justify-center rounded-full bg-raised text-ink-dim">
                     <UserRound size={16} aria-hidden />

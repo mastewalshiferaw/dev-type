@@ -10,6 +10,7 @@ import {
   signUpWithEmail,
   requestPasswordReset,
   updateUserPassword,
+  resolveRecoverySession,
   useAuthModal,
   closeAuthModal,
   type AuthModalMode,
@@ -40,6 +41,33 @@ export default function AuthModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [verifyingSession, setVerifyingSession] = useState(false);
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
+
+  // When update_password mode is active, verify that an authenticated session exists or exchange token
+  useEffect(() => {
+    if (isOpen && mode === 'update_password') {
+      let cancelled = false;
+      setVerifyingSession(true);
+      setError(null);
+      resolveRecoverySession().then((res) => {
+        if (cancelled) return;
+        setVerifyingSession(false);
+        if (!res.success) {
+          setSessionValid(false);
+          setError(res.error || 'Your password reset link is invalid or has expired.');
+        } else {
+          setSessionValid(true);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    } else {
+      setSessionValid(null);
+      setVerifyingSession(false);
+    }
+  }, [isOpen, mode]);
 
   // Sync mode when global modal triggers
   useEffect(() => {
@@ -57,6 +85,8 @@ export default function AuthModal({
       setSuccessMessage(null);
       setConfirmationEmail(null);
       setResetEmailSent(false);
+      setSessionValid(null);
+      setVerifyingSession(false);
       setPassword('');
       setConfirmPassword('');
       closeAuthModal();
@@ -294,6 +324,42 @@ export default function AuthModal({
                   className="inline-flex h-8 w-full items-center justify-center text-xs text-muted transition-ui hover:text-ink"
                 >
                   Send to another email
+                </button>
+              </div>
+            </div>
+          ) : mode === 'update_password' && verifyingSession ? (
+            <div className="mt-4 flex flex-col items-center justify-center py-8 text-center">
+              <Loader2 size={24} className="animate-spin text-accent" />
+              <p className="mt-3 text-xs font-medium text-ink">Verifying Reset Link...</p>
+              <p className="mt-1 text-2xs text-muted">Establishing secure recovery session</p>
+            </div>
+          ) : mode === 'update_password' && sessionValid === false ? (
+            <div className="mt-4 flex flex-col items-center text-center">
+              <div className="rounded-2xl flex size-12 items-center justify-center border border-danger/30 bg-danger/10 text-danger shadow-sm">
+                <KeyRound size={24} />
+              </div>
+              <h3 className="mt-3 text-base font-bold text-ink">Reset Link Invalid or Expired</h3>
+              <p className="mt-2 max-w-xs text-xs leading-relaxed text-muted">
+                {error || 'This recovery link is invalid or has already expired. Please request a fresh reset link below.'}
+              </p>
+              <div className="mt-5 flex w-full flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setSessionValid(null);
+                    setMode('forgot');
+                  }}
+                  className="inline-flex h-9 w-full items-center justify-center rounded-md bg-accent-fill px-4 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
+                >
+                  Request a New Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenChange(false)}
+                  className="inline-flex h-8 w-full items-center justify-center text-xs text-muted transition-ui hover:text-ink"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

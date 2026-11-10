@@ -130,7 +130,7 @@ export const supabaseProvider: LeaderboardProvider = {
     const cleanLang = (score.language || 'mixed').toLowerCase();
     const cleanMode = (score.modeKey || 'time-30').slice(0, 30);
 
-    const cleanAvatar = score.avatarUrl ? score.avatarUrl.trim().slice(0, 500) : undefined;
+    const cleanAvatar = score.avatarUrl ? score.avatarUrl.trim().slice(0, 2048) : undefined;
     const cleanTelegram = score.telegram ? score.telegram.trim().replace(/^@/, '').slice(0, 50) : undefined;
 
     const basePayload = {
