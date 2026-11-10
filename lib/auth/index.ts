@@ -524,6 +524,15 @@ export async function resolveRecoverySession(): Promise<{ success: boolean; erro
     try {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
+        // detectSessionInUrl may have already completed the exchange in parallel
+        const { data: fallbackData } = await supabase.auth.getSession();
+        if (fallbackData?.session?.user) {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('code');
+          cleanUrl.searchParams.delete('recovery');
+          window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
+          return { success: true };
+        }
         return { success: false, error: error.message };
       }
       if (data.session) {
@@ -535,6 +544,10 @@ export async function resolveRecoverySession(): Promise<{ success: boolean; erro
         return { success: true };
       }
     } catch (err) {
+      const { data: fallbackData } = await supabase.auth.getSession();
+      if (fallbackData?.session?.user) {
+        return { success: true };
+      }
       return { success: false, error: err instanceof Error ? err.message : 'Failed to verify recovery code' };
     }
   }

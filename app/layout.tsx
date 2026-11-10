@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Fira_Code, Geist_Mono, JetBrains_Mono } from 'next/font/google';
 import ThemeSync from '@/components/layout/ThemeSync';
+import GlobalAuthModal from '@/components/auth/GlobalAuthModal';
 import { SITE } from '@/lib/site';
 import { SPLASH_INIT_SCRIPT } from '@/lib/splash-script';
 import { THEME_INIT_SCRIPT } from '@/lib/theme-script';
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="flex min-h-full flex-col">
         <ThemeSync />
+        <GlobalAuthModal />
         {children}
       </body>
     </html>

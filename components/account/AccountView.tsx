@@ -5,12 +5,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useMounted } from '@/hooks/useMounted';
 import Skeleton from '@/components/ui/Skeleton';
-import AuthModal from '@/components/auth/AuthModal';
 import ContributionGraph from '@/components/account/ContributionGraph';
 import LanguageFocusChart from '@/components/account/LanguageFocusChart';
 import TestimonialCard from '@/components/account/TestimonialCard';
 import Avatar from '@/components/leaderboard/Avatar';
-import { useAuth, signOut } from '@/lib/auth';
+import { useAuth, signOut, openAuthModal } from '@/lib/auth';
 import { isUserAdmin } from '@/lib/auth/admin';
 import { leaderboardLanguageLabel } from '@/lib/languages';
 import { usePracticeLogs } from '@/lib/logs';
@@ -22,8 +21,6 @@ export default function AccountView() {
   const mounted = useMounted();
   const { user } = useAuth();
   const logs = usePracticeLogs();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
   if (!mounted) {
     return (
@@ -72,8 +69,7 @@ export default function AccountView() {
           <button
             type="button"
             onClick={() => {
-              setAuthMode('signin');
-              setAuthModalOpen(true);
+              openAuthModal('signin');
             }}
             className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-fill px-3 text-xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
           >
@@ -265,8 +261,7 @@ export default function AccountView() {
         bestWpm={bestWpm}
         totalRuns={totalRuns}
         onOpenAuth={() => {
-          setAuthMode('signin');
-          setAuthModalOpen(true);
+          openAuthModal('signin');
         }}
       />
 
@@ -325,8 +320,6 @@ export default function AccountView() {
           </div>
         )}
       </div>
-
-      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} defaultMode={authMode} />
     </div>
   );
 }

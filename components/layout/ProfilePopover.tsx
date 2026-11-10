@@ -4,9 +4,8 @@ import * as Popover from '@radix-ui/react-popover';
 import { Check, Flame, History, ImageIcon, Loader2, LogIn, LogOut, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
-import AuthModal from '@/components/auth/AuthModal';
 import Avatar from '@/components/leaderboard/Avatar';
-import { signOut, useAuth, updateUserProfile, checkUsernameAvailable } from '@/lib/auth';
+import { signOut, useAuth, updateUserProfile, checkUsernameAvailable, openAuthModal } from '@/lib/auth';
 import { clearHistory, useBests, useHistory } from '@/lib/history';
 import { languageLabel } from '@/lib/languages';
 import { usePracticeLogs } from '@/lib/logs';
@@ -418,7 +417,6 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
   const bests = useBests();
   const logs = usePracticeLogs();
   const streak = calculateStreak(logs);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const best = history.reduce((max, run) => Math.max(max, run.wpm), 0);
   const average = history.length
@@ -502,7 +500,7 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
                     type="button"
                     onClick={() => {
                       onOpenChange(false);
-                      setAuthModalOpen(true);
+                      openAuthModal('signin');
                     }}
                     className="inline-flex items-center gap-1 rounded-md bg-accent-fill px-2 py-1 text-2xs font-bold text-accent-ink hover:bg-accent-fill-hover"
                   >
@@ -594,8 +592,6 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
-
-      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
     </>
   );
 }
