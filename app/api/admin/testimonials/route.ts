@@ -1,44 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { isUserAdmin } from '@/lib/auth/admin';
+import { requireAdmin } from '@/lib/auth/server';
 import type { TestimonialStatus } from '@/lib/testimonials';
 
-function getServiceRoleKey(): { key?: string; isPublishable?: boolean } {
-  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env['SUPABASE_SERVICE_ROLE_KEY '];
-  const trimmed = rawKey?.trim();
-
-  if (!trimmed) return {};
-
-  const anonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  )?.trim();
-
-  // If the key is the same as the anon/publishable key or starts with sb_publishable_,
-  // it is not a service role key and cannot bypass RLS.
-  if (trimmed.startsWith('sb_publishable_') || (anonKey && trimmed === anonKey)) {
-    return { key: undefined, isPublishable: true };
-  }
-
-  return { key: trimmed, isPublishable: false };
-}
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_STATUSES: TestimonialStatus[] = ['pending', 'approved', 'rejected'];
 
 function getAdminClient(token?: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env['SUPABASE_SERVICE_ROLE_KEY '];
+  const serviceRoleKey = rawKey?.trim();
   const anonKey = (
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   )?.trim();
-  const { key: serviceRoleKey } = getServiceRoleKey();
 
   if (!url) return null;
 
-  // Prefer valid service role key if configured (bypasses RLS safely on server)
-  if (serviceRoleKey) {
+  if (serviceRoleKey && !serviceRoleKey.startsWith('sb_publishable_')) {
     return createClient(url, serviceRoleKey, {
       auth: { persistSession: false },
     });
   }
 
-  // Fallback to authenticated user client with Bearer token
   if (anonKey && token) {
     return createClient(url, anonKey, {
       auth: { persistSession: false },
@@ -50,69 +33,22 @@ function getAdminClient(token?: string) {
     });
   }
 
-  if (anonKey) {
-    return createClient(url, anonKey, { auth: { persistSession: false } });
-  }
-
   return null;
 }
 
-async function verifyAdmin(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.replace(/^Bearer\s+/i, '');
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!url || !anonKey) {
-    return { error: 'Database is not configured', status: 500 };
-  }
-
-  if (!token) {
-    return { error: 'Missing authorization header', status: 401 };
-  }
-
-  const authClient = createClient(url, anonKey, {
-    auth: { persistSession: false },
-  });
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser(token);
-
-  if (error || !user) {
-    return { error: 'Invalid or expired session', status: 401 };
-  }
-
-  const authUser = {
-    id: user.id,
-    email: user.email ?? '',
-    username: (user.user_metadata?.username as string) || `user_${user.id.slice(0, 4)}`,
-    createdAt: user.created_at,
-    isGuest: false,
-  };
-
-  if (!isUserAdmin(authUser)) {
-    return { error: 'Forbidden: Admin access required', status: 403 };
-  }
-
-  return { user: authUser, token };
-}
-
 export async function GET(request: Request) {
-  const verification = await verifyAdmin(request);
+  const verification = await requireAdmin(request);
   if ('error' in verification) {
     return NextResponse.json({ error: verification.error }, { status: verification.status });
   }
 
   const { searchParams } = new URL(request.url);
-  const statusFilter = searchParams.get('status') || 'all';
+  const rawFilter = searchParams.get('status') || 'all';
+  const statusFilter = ['all', ...VALID_STATUSES].includes(rawFilter) ? rawFilter : 'all';
 
   const client = getAdminClient(verification.token);
   if (!client) {
-    return NextResponse.json({ error: 'Failed to initialize database client' }, { status: 500 });
+    return NextResponse.json({ error: 'Database client unavailable' }, { status: 500 });
   }
 
   try {
@@ -127,12 +63,10 @@ export async function GET(request: Request) {
     }
 
     const { data, error } = await query;
-
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Status counts bounded to head count
     const [allRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
       client.from('testimonials').select('id', { count: 'exact', head: true }),
       client.from('testimonials').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
@@ -160,23 +94,9 @@ export async function GET(request: Request) {
       updatedAt: row.updated_at,
     }));
 
-    const { key: serviceRoleKey, isPublishable } = getServiceRoleKey();
-    const hasServiceRoleKey = Boolean(serviceRoleKey);
-
-    let warning: string | undefined;
-    if (isPublishable) {
-      warning =
-        "SUPABASE_SERVICE_ROLE_KEY is set to a publishable key (starts with 'sb_publishable_'). Supabase requires your secret/service_role key (starts with 'sb_secret_' or a standard JWT 'eyJ...') to bypass Row-Level Security on the server.";
-    } else if (!hasServiceRoleKey && testimonials.length === 0) {
-      warning =
-        "SUPABASE_SERVICE_ROLE_KEY is not configured in your environment. Supabase Row-Level Security (RLS) hides other users' pending submissions unless the service role key is set or admin RLS policies are applied in Supabase SQL editor.";
-    }
-
     return NextResponse.json({
       testimonials,
       counts,
-      hasServiceRoleKey,
-      warning,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
@@ -185,17 +105,23 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const verification = await verifyAdmin(request);
+  const verification = await requireAdmin(request);
   if ('error' in verification) {
     return NextResponse.json({ error: verification.error }, { status: verification.status });
   }
 
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { id, status } = body as { id?: string; status?: TestimonialStatus };
 
-    if (!id || !status || !['pending', 'approved', 'rejected'].includes(status)) {
-      return NextResponse.json({ error: 'Valid id and status are required' }, { status: 400 });
+    // Validate ID as strict UUID
+    if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: 'Invalid testimonial ID format' }, { status: 400 });
+    }
+
+    // Validate status
+    if (!status || !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: 'Valid status is required (pending, approved, rejected)' }, { status: 400 });
     }
 
     const client = getAdminClient(verification.token);
@@ -239,7 +165,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const verification = await verifyAdmin(request);
+  const verification = await requireAdmin(request);
   if ('error' in verification) {
     return NextResponse.json({ error: verification.error }, { status: verification.status });
   }
@@ -248,8 +174,8 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
-    if (!id) {
-      return NextResponse.json({ error: 'Missing testimonial id' }, { status: 400 });
+    if (!id || !UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: 'Invalid testimonial ID format' }, { status: 400 });
     }
 
     const client = getAdminClient(verification.token);
@@ -258,7 +184,6 @@ export async function DELETE(request: Request) {
     }
 
     const { error } = await client.from('testimonials').delete().eq('id', id);
-
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }

@@ -19,14 +19,18 @@ export const AVATAR_PRESETS = [
   { id: 'dev-6', label: 'Vibecoder', url: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=150&auto=format&fit=crop&q=80' },
 ];
 
-export const profileStore = createLocalStore<Profile>('devtype:profile', { username: '', avatarUrl: '', telegram: '', telegramVerified: false }, (raw) => {
-  const p = raw as Profile | null;
-  const username = typeof p?.username === 'string' && USERNAME_PATTERN.test(p.username) ? p.username : '';
-  const avatarUrl = typeof p?.avatarUrl === 'string' ? p.avatarUrl : '';
-  const telegram = typeof p?.telegram === 'string' ? p.telegram : '';
-  const telegramVerified = Boolean(p?.telegramVerified);
-  return { username, avatarUrl, telegram, telegramVerified };
-});
+export const profileStore = createLocalStore<Profile>(
+  'devtype:profile',
+  { username: '', avatarUrl: AVATAR_PRESETS[0].url, telegram: '', telegramVerified: false },
+  (raw) => {
+    const p = raw as Profile | null;
+    const username = typeof p?.username === 'string' && USERNAME_PATTERN.test(p.username) ? p.username : '';
+    const avatarUrl = typeof p?.avatarUrl === 'string' && p.avatarUrl ? p.avatarUrl : AVATAR_PRESETS[0].url;
+    const telegram = typeof p?.telegram === 'string' ? p.telegram : '';
+    const telegramVerified = Boolean(p?.telegramVerified);
+    return { username, avatarUrl, telegram, telegramVerified };
+  }
+);
 
 export function useProfile(): Profile {
   return useLocalStore(profileStore);
@@ -41,6 +45,6 @@ export function setProfileData(partial: Partial<Profile>) {
   profileStore.set({ ...profileStore.get(), ...partial });
 }
 
-export { cleanTelegramChannel, fetchTelegramAvatar } from '@/lib/telegram';
+export { cleanTelegramChannel } from '@/lib/telegram';
 
 

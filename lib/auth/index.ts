@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
-import { profileStore, setUsername, setProfileData, USERNAME_PATTERN, USERNAME_HINT } from '@/lib/profile';
+import { profileStore, setUsername, setProfileData, USERNAME_PATTERN, USERNAME_HINT, AVATAR_PRESETS } from '@/lib/profile';
 import { createLocalStore, useLocalStore } from '@/lib/store';
 import { refreshLeaderboard } from '@/hooks/useLeaderboard';
 import type { AuthState, AuthUser } from './types';
@@ -46,26 +46,8 @@ const guestStore = createLocalStore<GuestStoreData>(GUEST_KEY, { user: null }, (
   raw && typeof raw === 'object' && 'user' in raw ? (raw as GuestStoreData) : { user: null }
 );
 
-export interface ProfileData {
-  username?: string;
-  avatarUrl?: string;
-  telegram?: string;
-}
-
-export function formatSupabaseUser(user: User, profileData?: ProfileData): AuthUser {
-  const username = profileData?.username || (user.user_metadata?.username as string | undefined) || `coder_${user.id.substring(0, 4)}`;
-
-  return {
-    id: user.id,
-    email: user.email ?? '',
-    username,
-    avatarUrl: profileData?.avatarUrl || (user.user_metadata?.avatar_url as string | undefined) || undefined,
-    telegram: profileData?.telegram || (user.user_metadata?.telegram as string | undefined) || undefined,
-    telegramVerified: Boolean(user.user_metadata?.telegram_verified),
-    createdAt: user.created_at,
-    isGuest: false,
-  };
-}
+import { formatSupabaseUser, type ProfileData } from './format';
+export { formatSupabaseUser, type ProfileData };
 
 export async function fetchProfileData(userId: string): Promise<ProfileData | null> {
   const supabase = getSupabase();
@@ -288,6 +270,13 @@ export function initAuth() {
 
   // Listen to Supabase auth events
   supabase.auth.onAuthStateChange((event, session) => {
+    if (typeof document !== 'undefined') {
+      if (session?.access_token) {
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax`;
+      } else {
+        document.cookie = `sb-access-token=; path=/; max-age=0; SameSite=Lax`;
+      }
+    }
     if (event === 'PASSWORD_RECOVERY') {
       openAuthModal('update_password');
     }
@@ -439,6 +428,7 @@ export async function signUpWithEmail(
       options: {
         data: {
           username: cleanUsername,
+          avatar_url: AVATAR_PRESETS[0].url,
         },
       },
     });
@@ -750,6 +740,11 @@ export async function updateUserProfile(updates: {
   const cleanUsername = updates.username ? updates.username.trim().replace(/\s+/g, '_') : undefined;
   const cleanAvatar = updates.avatarUrl !== undefined ? updates.avatarUrl.trim() : undefined;
   const cleanTelegram = updates.telegram !== undefined ? updates.telegram.trim().replace(/^@/, '') : undefined;
+
+  // Enforce profile photo requirement
+  if (updates.avatarUrl !== undefined && !updates.avatarUrl.trim()) {
+    return { error: 'A profile photo is required. Please choose an avatar preset or enter a photo URL.' };
+  }
 
   // Check username if changing
   if (cleanUsername) {

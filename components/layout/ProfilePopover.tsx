@@ -1,7 +1,7 @@
 'use client';
 
 import * as Popover from '@radix-ui/react-popover';
-import { Check, CheckCircle2, Copy, Flame, History, ImageIcon, Loader2, LogIn, LogOut, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { Check, Flame, History, ImageIcon, LogIn, LogOut, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import Avatar from '@/components/leaderboard/Avatar';
@@ -15,9 +15,7 @@ import {
   USERNAME_PATTERN,
   useProfile,
   cleanTelegramChannel,
-  fetchTelegramAvatar,
 } from '@/lib/profile';
-import { getTelegramVerificationCode, verifyTelegramChannel } from '@/lib/telegram';
 import { modeKeyLabel } from '@/lib/settings';
 import { calculateStreak } from '@/lib/streak';
 
@@ -30,73 +28,16 @@ function ProfileForm() {
   const { username, avatarUrl, telegram } = useProfile();
   const { user } = useAuth();
   const [draftUsername, setDraftUsername] = useState(username);
-  const [draftAvatar, setDraftAvatar] = useState(avatarUrl || '');
+  const [draftAvatar, setDraftAvatar] = useState(user?.avatarUrl || avatarUrl || AVATAR_PRESETS[0].url);
   const [draftTelegram, setDraftTelegram] = useState(telegram || '');
-  const [channelAvatar, setChannelAvatar] = useState<string | null>(null);
-  const [channelTitle, setChannelTitle] = useState<string | null>(null);
-  const [channelHasCustomPhoto, setChannelHasCustomPhoto] = useState(false);
-  const [channelInitials, setChannelInitials] = useState<string | null>(null);
-  const [channelFetchStatus, setChannelFetchStatus] = useState<'idle' | 'fetching' | 'found' | 'not-found'>('idle');
   const [showCustomAvatarInput, setShowCustomAvatarInput] = useState(false);
   const [status, setStatus] = useState<'idle' | 'checking' | 'saving' | 'saved' | 'invalid'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [copiedCode, setCopiedCode] = useState(false);
-
-  const isVerifiedOwner = Boolean(
-    user &&
-    !user.isGuest &&
-    user.telegramVerified &&
-    draftTelegram &&
-    cleanTelegramChannel(user.telegram) === cleanTelegramChannel(draftTelegram)
-  );
-
-  const verificationCode = user && !user.isGuest ? getTelegramVerificationCode(user.id) : '';
-
-  const handleCopyCode = () => {
-    if (!verificationCode) return;
-    navigator.clipboard.writeText(verificationCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
-
-  const handleVerifyChannel = async () => {
-    if (!user || user.isGuest) {
-      openAuthModal('signin');
-      return;
-    }
-    const clean = cleanTelegramChannel(draftTelegram);
-    if (!clean) return;
-    setVerifying(true);
-    setVerifyError(null);
-    try {
-      const res = await verifyTelegramChannel(clean, user.id);
-      if (res.success && res.verified) {
-        if (res.avatarUrl) {
-          setDraftAvatar(res.avatarUrl);
-          setChannelAvatar(res.avatarUrl);
-        }
-        await updateUserProfile({
-          telegram: clean,
-          ...(res.avatarUrl ? { avatarUrl: res.avatarUrl } : {}),
-        });
-        setStatus('saved');
-        setTimeout(() => setStatus('idle'), 2500);
-      } else {
-        setVerifyError(res.error || 'Verification failed. Code was not found in channel.');
-      }
-    } catch (err) {
-      setVerifyError(err instanceof Error ? err.message : 'Verification failed');
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   // Sync draft when user or stored profile changes
   useEffect(() => {
     setDraftUsername(user?.username || username || '');
-    setDraftAvatar(user?.avatarUrl || avatarUrl || '');
+    setDraftAvatar(user?.avatarUrl || avatarUrl || AVATAR_PRESETS[0].url);
     setDraftTelegram(user?.telegram || telegram || '');
   }, [user?.username, user?.avatarUrl, user?.telegram, username, avatarUrl, telegram]);
 
@@ -142,61 +83,11 @@ function ProfileForm() {
     };
   }, [draftUsername, user?.username, user?.id, username]);
 
-  // Debounced auto-fetch for Telegram channel photo
-  useEffect(() => {
-    const clean = cleanTelegramChannel(draftTelegram);
-    if (!clean || clean.length < 4) {
-      setChannelAvatar(null);
-      setChannelTitle(null);
-      setChannelHasCustomPhoto(false);
-      setChannelInitials(null);
-      setChannelFetchStatus('idle');
-      return;
-    }
-
-    let cancelled = false;
-    setChannelFetchStatus('fetching');
-
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetchTelegramAvatar(clean);
-        if (cancelled) return;
-        if (res.avatarUrl) {
-          setChannelAvatar(res.avatarUrl);
-          setChannelTitle(res.title || null);
-          setChannelHasCustomPhoto(Boolean(res.hasCustomPhoto));
-          setChannelInitials(res.initials || null);
-          setChannelFetchStatus('found');
-          // Automatically set draftAvatar if the user hasn't selected another avatar or was using channel avatar
-          setDraftAvatar((prev) => {
-            if (!prev || prev === channelAvatar) {
-              return res.avatarUrl!;
-            }
-            return prev;
-          });
-        } else {
-          setChannelAvatar(null);
-          setChannelTitle(null);
-          setChannelHasCustomPhoto(false);
-          setChannelInitials(null);
-          setChannelFetchStatus('not-found');
-        }
-      } catch {
-        if (!cancelled) setChannelFetchStatus('idle');
-      }
-    }, 450);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [draftTelegram]);
-
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const cleanName = draftUsername.trim().replace(/\s+/g, '_');
     const cleanTelegram = cleanTelegramChannel(draftTelegram);
-    const cleanAvatar = draftAvatar.trim();
+    const cleanAvatar = (draftAvatar || '').trim();
 
     setDraftUsername(cleanName);
     setDraftTelegram(cleanTelegram);
@@ -204,6 +95,12 @@ function ProfileForm() {
 
     if (!USERNAME_PATTERN.test(cleanName)) {
       setErrorMessage(USERNAME_HINT);
+      setStatus('invalid');
+      return;
+    }
+
+    if (!cleanAvatar) {
+      setErrorMessage('A profile photo is required. Please choose an avatar preset or enter a photo URL.');
       setStatus('invalid');
       return;
     }
@@ -255,58 +152,26 @@ function ProfileForm() {
 
   return (
     <form onSubmit={save} className="flex flex-col gap-3 rounded-lg border border-line/60 bg-canvas/40 p-3">
-      {/* Avatar Presets & Custom Photo */}
+      {/* Avatar Presets & Custom Photo (Mandatory) */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <label className="label text-muted">Profile Avatar</label>
-          {draftAvatar ? (
-            <button
-              type="button"
-              onClick={() => setDraftAvatar('')}
-              className="text-2xs text-muted hover:text-danger transition-colors"
-            >
-              Reset to initials
-            </button>
-          ) : null}
+          <label className="label text-muted">
+            Profile Photo <span className="text-accent">*</span>
+          </label>
+          <span className="text-3xs text-muted">Required</span>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5">
-          {/* Telegram Channel Avatar option if available */}
-          {channelAvatar && (
-            <button
-              type="button"
-              onClick={() => setDraftAvatar(draftAvatar === channelAvatar ? '' : channelAvatar)}
-              title={
-                channelTitle
-                  ? `Use Telegram Channel ${channelHasCustomPhoto ? 'photo' : 'letter avatar'} (${channelTitle})`
-                  : `Use Telegram Channel ${channelHasCustomPhoto ? 'photo' : 'letter avatar'}`
-              }
-              className={`relative size-8 shrink-0 overflow-hidden rounded-full ring-2 transition-all ${
-                draftAvatar === channelAvatar
-                  ? 'ring-accent ring-offset-2 ring-offset-surface scale-105'
-                  : 'ring-sky-500/50 hover:ring-sky-400'
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={channelAvatar} alt="Telegram channel avatar" className="size-full object-cover" />
-              <span
-                title={channelHasCustomPhoto ? 'Channel Photo' : 'Channel Letter Avatar'}
-                className="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center rounded-full bg-sky-500 text-white"
-              >
-                <svg className="size-2 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
-                </svg>
-              </span>
-            </button>
-          )}
-
           {AVATAR_PRESETS.map((preset) => {
             const isSelected = draftAvatar === preset.url;
             return (
               <button
                 key={preset.id}
                 type="button"
-                onClick={() => setDraftAvatar(isSelected ? '' : preset.url)}
+                onClick={() => {
+                  setDraftAvatar(preset.url);
+                  setErrorMessage(null);
+                }}
                 title={preset.label}
                 className={`relative size-8 shrink-0 overflow-hidden rounded-full ring-2 transition-all ${
                   isSelected
@@ -334,7 +199,10 @@ function ProfileForm() {
           <input
             type="url"
             value={draftAvatar}
-            onChange={(e) => setDraftAvatar(e.target.value)}
+            onChange={(e) => {
+              setDraftAvatar(e.target.value);
+              setErrorMessage(null);
+            }}
             placeholder="https://example.com/avatar.jpg"
             className="h-8 rounded-md border border-line-strong bg-canvas px-2.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
           />
@@ -372,17 +240,9 @@ function ProfileForm() {
 
       {/* Telegram Channel Field */}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label htmlFor="profile-telegram" className="label text-muted">
-            Telegram Channel (Dev Community)
-          </label>
-          {channelFetchStatus === 'fetching' && (
-            <span className="flex items-center gap-1 text-3xs text-muted">
-              <Loader2 size={10} className="animate-spin text-sky-400" />
-              Fetching photo...
-            </span>
-          )}
-        </div>
+        <label htmlFor="profile-telegram" className="label text-muted">
+          Telegram Channel <span className="text-3xs text-muted">(Optional)</span>
+        </label>
         <div className="relative flex items-center">
           <span className="pointer-events-none absolute left-2.5 text-xs text-muted font-mono">@</span>
           <input
@@ -397,111 +257,8 @@ function ProfileForm() {
             className="h-8 w-full rounded-md border border-line-strong bg-canvas pl-6 pr-2.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
           />
         </div>
-
-        {/* Live Channel Avatar preview & quick apply card */}
-        {channelAvatar && (
-          <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/25 bg-sky-500/8 px-2.5 py-1.5">
-            <div className="flex items-center gap-2 min-w-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={channelAvatar}
-                alt="Channel avatar"
-                className="size-7 shrink-0 rounded-full object-cover ring-1 ring-sky-500/50"
-              />
-              <div className="flex min-w-0 flex-col">
-                <span className="text-2xs font-semibold text-ink truncate">
-                  {channelTitle || `@${cleanTelegramChannel(draftTelegram)}`}
-                </span>
-                <span className="text-3xs text-sky-400">
-                  {channelHasCustomPhoto
-                    ? 'Channel photo detected'
-                    : `Channel letter avatar (${channelInitials || 'initials'})`}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDraftAvatar(channelAvatar)}
-              className={`shrink-0 rounded px-2 py-1 text-3xs font-bold transition-all ${
-                draftAvatar === channelAvatar
-                  ? 'bg-accent/20 text-accent ring-1 ring-accent/30'
-                  : 'bg-sky-500 text-white hover:bg-sky-400'
-              }`}
-            >
-              {draftAvatar === channelAvatar ? 'Active' : channelHasCustomPhoto ? 'Apply Photo' : 'Apply Avatar'}
-            </button>
-          </div>
-        )}
-
-        {/* Ownership Verification Status & Claim Card */}
-        {draftTelegram && isVerifiedOwner && (
-          <div className="flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-2xs font-medium text-emerald-400">
-            <CheckCircle2 size={12} className="shrink-0 text-emerald-400" />
-            <span>Verified Channel Owner (@{cleanTelegramChannel(draftTelegram)})</span>
-          </div>
-        )}
-
-        {draftTelegram && !isVerifiedOwner && cleanTelegramChannel(draftTelegram).length >= 4 && (
-          <div className="flex flex-col gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-2.5">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-2xs font-bold text-sky-400">
-                <ShieldCheck size={12} />
-                Ownership Verification
-              </span>
-              <span className="text-3xs text-muted">Anti-Spoofing</span>
-            </div>
-            {!user || user.isGuest ? (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-3xs leading-relaxed text-muted">
-                  Sign in to verify and lock your channel handle so no one else can claim it.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => openAuthModal('signin')}
-                  className="self-start inline-flex h-6 items-center justify-center rounded bg-accent-fill px-2 text-2xs font-bold text-accent-ink transition-ui hover:bg-accent-fill-hover"
-                >
-                  Sign In to Verify
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-3xs leading-relaxed text-muted">
-                  Post this one-time code in <strong className="text-ink">@{cleanTelegramChannel(draftTelegram)}</strong> to prove ownership. (You can delete the post right after verifying):
-                </p>
-                <div className="flex items-center gap-1.5 rounded border border-line bg-canvas/80 px-2 py-1">
-                  <code className="flex-1 font-mono text-xs font-bold text-accent select-all">{verificationCode}</code>
-                  <button
-                    type="button"
-                    onClick={handleCopyCode}
-                    className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-3xs font-semibold text-muted transition-colors hover:text-ink"
-                  >
-                    {copiedCode ? <Check size={10} className="text-accent" /> : <Copy size={10} />}
-                    {copiedCode ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-                {verifyError && (
-                  <p className="text-3xs font-medium leading-tight text-danger">{verifyError}</p>
-                )}
-                <button
-                  type="button"
-                  disabled={verifying}
-                  onClick={handleVerifyChannel}
-                  className="inline-flex h-7 items-center justify-center gap-1.5 rounded bg-sky-500 px-3 text-2xs font-bold text-white transition-colors hover:bg-sky-400 disabled:opacity-50"
-                >
-                  {verifying ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                  {verifying ? 'Checking channel feed...' : 'Verify & Claim Channel'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {channelFetchStatus === 'not-found' && cleanTelegramChannel(draftTelegram).length >= 4 && (
-          <p className="text-2xs text-muted">Channel lookup failed. Try checking the handle spelling.</p>
-        )}
-
         <p className="text-2xs text-muted">
-          Shows below your username on the leaderboard with a direct link.
+          Displays below your username on the leaderboard with a link to your Telegram channel.
         </p>
       </div>
 
@@ -585,11 +342,6 @@ export default function ProfilePopover({ open, onOpenChange }: Props) {
                         <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.536-.196 1.006.128.832.945z" />
                       </svg>
                       @{cleanTelegramChannel(effectiveTelegram)}
-                      {Boolean(user?.telegramVerified) && (
-                        <span title="Verified Channel Owner" className="inline-flex items-center">
-                          <CheckCircle2 size={10} className="shrink-0 text-sky-400" aria-hidden="true" />
-                        </span>
-                      )}
                     </a>
                   )}
                   <p className="text-2xs text-muted truncate">

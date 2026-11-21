@@ -13,8 +13,8 @@ import type { RunRecord } from '@/lib/history';
 import { usePracticeLogs } from '@/lib/logs';
 import { calculateStreak } from '@/lib/streak';
 import { languageLabel } from '@/lib/languages';
-import { useAuth, checkUsernameAvailable } from '@/lib/auth';
-import { setUsername, USERNAME_HINT, USERNAME_PATTERN, useProfile } from '@/lib/profile';
+import { useAuth, checkUsernameAvailable, openAuthModal } from '@/lib/auth';
+import { USERNAME_HINT, USERNAME_PATTERN, useProfile } from '@/lib/profile';
 import { modeKeyLabel } from '@/lib/settings';
 
 // Recharts is heavy and only needed after a run
@@ -149,28 +149,29 @@ function SubmitScore({ record }: { record: RunRecord }) {
 
       setState({ status: 'sending' });
 
-      // Verify username availability before taking or submitting under a name
+      // Only authenticated users can submit to the ranked leaderboard
       if (!user || user.isGuest) {
-        const available = await checkUsernameAvailable(name, user?.id);
-        if (!available) {
-          setState({
-            status: 'error',
-            message: 'This username is already taken. Please choose another one.',
-          });
-          return;
-        }
-        setUsername(name);
+        openAuthModal('signin');
+        setState({
+          status: 'error',
+          message: 'Please sign in to submit your score to the official leaderboard.',
+        });
+        return;
       }
+
       try {
         await submitScore({
-          userId: user && !user.isGuest ? user.id : undefined,
+          runId: record.id,
+          userId: user.id,
           username: name,
-          avatarUrl: user?.avatarUrl || avatarUrl,
-          telegram: user?.telegram || telegram,
+          avatarUrl: user.avatarUrl || avatarUrl,
+          telegram: user.telegram || telegram,
           wpm: record.wpm,
           accuracy: record.accuracy,
           language: record.language === 'custom' ? 'mixed' : record.language,
           modeKey: record.modeKey,
+          durationMs: record.durationMs,
+          errors: record.errors,
         });
 
         // Mark this record as submitted

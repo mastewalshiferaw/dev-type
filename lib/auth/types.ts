@@ -7,6 +7,9 @@ export interface AuthUser {
   telegramVerified?: boolean;
   createdAt: string;
   isGuest?: boolean;
+  role?: string;
+  isAdmin?: boolean;
+  emailConfirmedAt?: string | null;
 }
 
 export interface AuthState {

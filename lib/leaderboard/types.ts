@@ -42,7 +42,22 @@ export interface LeaderboardPage {
   you: RankedEntry | null;
 }
 
-export type ScoreSubmission = Omit<LeaderboardEntry, 'id' | 'createdAt'>;
+export interface ScoreSubmission {
+  userId?: string;
+  username: string;
+  avatarUrl?: string;
+  telegram?: string;
+  telegramVerified?: boolean;
+  wpm: number;
+  accuracy: number;
+  language: ScoreLanguage;
+  modeKey: string;
+  runId?: string;
+  durationMs?: number;
+  correctChars?: number;
+  incorrectChars?: number;
+  errors?: number;
+}
 
 /**
  * Anything that can store and rank scores. The app only talks to this interface, so the mock

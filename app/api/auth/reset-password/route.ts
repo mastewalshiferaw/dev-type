@@ -1,16 +1,35 @@
 import { NextResponse } from 'next/server';
-import { getSupabase, getSupabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const ip = getClientIp(request);
+    const ipRate = checkRateLimit(`reset-ip:${ip}`, 20, 15 * 60 * 1000);
+    if (!ipRate.allowed) {
+      return NextResponse.json(
+        { error: 'Too many password reset attempts. Please wait a few minutes before trying again.' },
+        { status: 429 }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
     const rawEmail = typeof body?.email === 'string' ? body.email : '';
     const cleanEmail = rawEmail.trim().toLowerCase();
 
     if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
       return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    }
+
+    const emailRate = checkRateLimit(`reset-email:${cleanEmail}`, 3, 15 * 60 * 1000);
+    if (!emailRate.allowed) {
+      return NextResponse.json(
+        { error: 'Too many password reset attempts for this email. Please wait a few minutes before trying again.' },
+        { status: 429 }
+      );
     }
 
     const origin =
@@ -20,61 +39,33 @@ export async function POST(request: Request) {
 
     const redirectTo = origin ? `${origin}/play?recovery=true` : undefined;
 
-    // 1. Try standard Supabase resetPasswordForEmail
     const supabase = getSupabase();
-    if (supabase) {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo,
-      });
-
-      if (!resetError) {
-        return NextResponse.json({ success: true });
-      }
-
-      // If Supabase returned an error, log it for debugging
-      console.warn('[Password Reset] Supabase resetPasswordForEmail failed:', resetError.message);
-
-      // If the error is rate limit / mailer failure, check if admin can generate link
-      const supabaseAdmin = getSupabaseAdmin();
-      if (supabaseAdmin) {
-        try {
-          const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-            type: 'recovery',
-            email: cleanEmail,
-            options: {
-              redirectTo,
-            },
-          });
-
-          if (!linkError && linkData?.properties?.action_link) {
-            console.info(
-              `[Password Reset] Recovery link generated for ${cleanEmail}: ${linkData.properties.action_link}`
-            );
-          }
-        } catch (adminErr) {
-          console.error('[Password Reset] Admin link generation error:', adminErr);
-        }
-      }
-
-      // Return user-friendly error message rather than cryptic raw error
-      if (resetError.message.includes('Error sending recovery email')) {
-        return NextResponse.json(
-          {
-            error:
-              'Email service rate limit reached or delivery temporarily unavailable. Please wait a few minutes before trying again.',
-          },
-          { status: 429 }
-        );
-      }
-
-      return NextResponse.json({ error: resetError.message }, { status: 400 });
+    if (!supabase) {
+      return NextResponse.json({ error: 'Authentication service temporarily unavailable' }, { status: 500 });
     }
 
-    return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 });
+    // Call standard Supabase resetPasswordForEmail: Supabase directly delivers the email.
+    // Never generate an admin recovery link, never log tokens, never log recovery URLs.
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo,
+    });
+
+    if (resetError) {
+      // Log sanitized warning without leaking tokens, credentials, or email
+      logger.warn('[Password Reset] Request dispatched with upstream note', { code: resetError.status });
+    } else {
+      logger.info('[Password Reset] Reset request processed successfully');
+    }
+
+    // Always return a generic success response to avoid account enumeration
+    return NextResponse.json({
+      success: true,
+      message: 'If an account exists with this email, a password reset link has been sent.',
+    });
   } catch (err) {
-    console.error('[Password Reset] Unexpected error:', err);
+    logger.error('[Password Reset] Unexpected error occurred', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to request password reset' },
+      { error: 'Failed to process password reset request' },
       { status: 500 }
     );
   }

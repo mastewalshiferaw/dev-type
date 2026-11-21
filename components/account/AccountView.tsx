@@ -2,7 +2,6 @@
 
 import { ArrowLeft, Flame, History, LogIn, LogOut, ShieldCheck, Trophy, UserCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
 import { useMounted } from '@/hooks/useMounted';
 import Skeleton from '@/components/ui/Skeleton';
 import ContributionGraph from '@/components/account/ContributionGraph';
