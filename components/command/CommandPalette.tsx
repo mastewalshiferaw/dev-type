@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Settings2,
   SlidersHorizontal,
+  Swords,
   Timer,
   ToggleLeft,
   UserRound,
@@ -67,6 +68,13 @@ export default function CommandPalette({
         </Item>
         <Item icon={UserRound} onSelect={run(onOpenProfile)} keywords={['username', 'history']}>
           Edit profile
+        </Item>
+        <Item
+          icon={Swords}
+          onSelect={run(() => router.push('/duel'))}
+          keywords={['duel', '1v1', 'multiplayer', 'vs', 'commit', 'race', 'friend']}
+        >
+          1v1 Commit Duel (Play with a friend)
         </Item>
         <Item
           icon={Flame}

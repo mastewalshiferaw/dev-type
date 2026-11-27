@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlignLeft, Code2, Infinity as InfinityIcon, Pencil, Settings2 } from 'lucide-react';
+import { AlignLeft, Code2, Infinity as InfinityIcon, Pencil, Settings2, Swords } from 'lucide-react';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import Select from '@/components/ui/Select';
 import { LANGUAGE_FILTER_OPTIONS } from '@/lib/languages';
@@ -124,6 +125,14 @@ export default function ConfigBar({ settings, onOpenSettings }: Props) {
             </>
           )}
           <Divider />
+          <Link
+            href="/duel"
+            aria-label="1v1 Commit Duel"
+            title="1v1 Commit Duel: Play with a friend"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-ui hover:bg-raised hover:text-accent"
+          >
+            <Swords size={16} aria-hidden />
+          </Link>
           <button
             type="button"
             onClick={() => onOpenSettings()}

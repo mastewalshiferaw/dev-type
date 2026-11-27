@@ -1,6 +1,7 @@
 'use client';
 
-import { Settings2 } from 'lucide-react';
+import Link from 'next/link';
+import { Settings2, Swords } from 'lucide-react';
 import Logo from '@/components/layout/Logo';
 import PaletteButton from '@/components/layout/PaletteButton';
 import ProfilePopover from '@/components/layout/ProfilePopover';
@@ -22,6 +23,14 @@ export default function Header({ onOpenPalette, onOpenSettings, profileOpen, onP
     <header className="flex items-center justify-between gap-4">
       <Logo />
       <nav aria-label="App" className="flex items-center gap-2">
+        <Link
+          href="/duel"
+          aria-label="1v1 Commit Duel"
+          title="1v1 Commit Duel: Play with a friend"
+          className={ICON_BUTTON}
+        >
+          <Swords size={18} aria-hidden />
+        </Link>
         <StreakBadge />
         <PaletteButton onClick={onOpenPalette} />
         <button type="button" onClick={onOpenSettings} aria-label="Open settings" className={ICON_BUTTON}>
